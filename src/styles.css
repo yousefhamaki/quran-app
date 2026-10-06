@@ -39,3 +39,18 @@ button.ghost { background:transparent; color:var(--accent); }
 .tafsir-text { white-space:pre-wrap; line-height:1.9; font-size:1.05rem; }
 .tafsir-text.rtl { direction:rtl; text-align:right; font-family:'Amiri Quran',serif; font-size:1.3rem; line-height:2.2; }
 .tafsir-ayah { font-family:'Amiri Quran',serif; font-size:1.5rem; direction:rtl; text-align:right; margin:0 0 8px; color:var(--accent); }
+.ar { font-size:var(--ar-size, 2rem); }
+.reader-tools { display:flex; gap:8px; align-items:center; justify-content:center; padding:8px 0; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+.reader-tools button { padding:6px 12px; }
+.reader-tools button.off { background:var(--hl); color:var(--accent); }
+.resume { width:100%; margin:12px 0 0; padding:12px; font-weight:600; }
+.search-row { display:flex; gap:8px; align-items:center; }
+.search-row .search { flex:1; }
+.search-row button { margin-top:8px; white-space:nowrap; }
+.results h3 { margin:12px 0 6px; font-size:.95rem; color:var(--muted); }
+.result { padding:12px; margin:8px 0; background:var(--card); border:1px solid var(--line); border-radius:12px; cursor:pointer; }
+.result:hover { border-color:var(--accent); }
+.result small { display:block; margin-bottom:4px; }
+.result p { margin:0; line-height:1.8; }
+.result p.rtl { direction:rtl; text-align:right; font-family:'Amiri Quran',serif; font-size:1.3rem; }
+mark { background:#f5d76e; color:#222; border-radius:3px; padding:0 2px; }

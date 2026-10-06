@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { RECITERS, TAFSIRS, audioUrl, fetchSurahs, fetchSurah, fetchTafsir } from './api.js';
+import { RECITERS, TAFSIRS, audioUrl, fetchSurahs, fetchSurah, fetchTafsir, searchQuran, isArabic } from './api.js';
 
 const T = {
-  en: { title: 'Holy Quran', ayahs: 'ayahs', back: 'Surahs', choose: 'Choose a reciter', pause: 'Stop', next: 'Next ayah', close: 'Close', loading: 'Loading...', error: 'Something went wrong. Check your connection.', lang: 'العربية', search: 'Search surah (name or number)', bookmarks: 'Bookmarks', bookmark: 'Bookmark', unbookmark: 'Remove bookmark', auto: 'Continuous', ayah: 'Ayah', noResults: 'No results', tafsir: 'Tafsir', tafsirLoading: 'Loading tafsir...', tafsirEmpty: 'No tafsir available for this ayah.' },
-  ar: { title: 'القرآن الكريم', ayahs: 'آية', back: 'السور', choose: 'اختر القارئ', pause: 'إيقاف', next: 'الآية التالية', close: 'إغلاق', loading: 'جارٍ التحميل...', error: 'حدث خطأ. تحقق من الاتصال.', lang: 'English', search: 'ابحث عن سورة (الاسم أو الرقم)', bookmarks: 'العلامات', bookmark: 'إضافة علامة', unbookmark: 'إزالة العلامة', auto: 'تشغيل متواصل', ayah: 'آية', noResults: 'لا نتائج', tafsir: 'التفسير', tafsirLoading: 'جارٍ تحميل التفسير...', tafsirEmpty: 'لا يوجد تفسير لهذه الآية.' },
+  en: { title: 'Holy Quran', ayahs: 'ayahs', back: 'Surahs', choose: 'Choose a reciter', pause: 'Stop', next: 'Next ayah', close: 'Close', loading: 'Loading...', error: 'Something went wrong. Check your connection.', lang: 'العربية', search: 'Search surah (name or number)', bookmarks: 'Bookmarks', bookmark: 'Bookmark', unbookmark: 'Remove bookmark', auto: 'Continuous', ayah: 'Ayah', noResults: 'No results', tafsir: 'Tafsir', tafsirLoading: 'Loading tafsir...', tafsirEmpty: 'No tafsir available for this ayah.', resume: 'Continue reading', translation: 'Translation', searchAyahs: 'Search in Quran', searchPh: 'Search surah or any word in the Quran', searching: 'Searching...', results: 'matches', showing: 'showing first', clear: 'Clear', textSize: 'Text size' },
+  ar: { title: 'القرآن الكريم', ayahs: 'آية', back: 'السور', choose: 'اختر القارئ', pause: 'إيقاف', next: 'الآية التالية', close: 'إغلاق', loading: 'جارٍ التحميل...', error: 'حدث خطأ. تحقق من الاتصال.', lang: 'English', search: 'ابحث عن سورة (الاسم أو الرقم)', bookmarks: 'العلامات', bookmark: 'إضافة علامة', unbookmark: 'إزالة العلامة', auto: 'تشغيل متواصل', ayah: 'آية', noResults: 'لا نتائج', tafsir: 'التفسير', tafsirLoading: 'جارٍ تحميل التفسير...', tafsirEmpty: 'لا يوجد تفسير لهذه الآية.', resume: 'تابع القراءة', translation: 'الترجمة', searchAyahs: 'بحث في القرآن', searchPh: 'ابحث عن سورة أو أي كلمة في القرآن', searching: 'جارٍ البحث...', results: 'نتيجة', showing: 'عرض أول', clear: 'مسح', textSize: 'حجم الخط' },
 };
 
 const SPEEDS = [0.75, 1, 1.25, 1.5];
@@ -31,6 +31,10 @@ export default function App() {
   const [tafsirId, setTafsirId] = useState(Number(load('tafsir', String(TAFSIRS[0].id))));
   const [tafsirAyah, setTafsirAyah] = useState(null); // ayah whose tafsir panel is open
   const [tafsirText, setTafsirText] = useState({ state: 'idle', text: '' });
+  const [fontSize, setFontSize] = useState(Number(load('fontSize', '32'))); // px, Arabic text
+  const [showTrans, setShowTrans] = useState(load('showTrans', '1') === '1');
+  const [lastRead, setLastRead] = useState(loadJSON('lastRead', null)); // { s, a }
+  const [found, setFound] = useState(null); // { state, count, matches, ar }
   const audio = useRef(new Audio());
   const t = T[lang];
 
@@ -43,6 +47,8 @@ export default function App() {
     document.documentElement.lang = lang;
     save('lang', lang);
   }, [lang]);
+
+  useEffect(() => { document.documentElement.style.setProperty('--ar-size', `${fontSize}px`); save('fontSize', String(fontSize)); }, [fontSize]);
 
   useEffect(() => {
     fetchSurahs().then(s => { setSurahs(s); setStatus('ok'); }).catch(() => setStatus('error'));
@@ -72,6 +78,25 @@ export default function App() {
   function openTafsir() { setTafsirAyah(selected); setSelected(null); }
   function changeTafsir(id) { setTafsirId(id); save('tafsir', String(id)); }
 
+  function markRead(s, a) { const v = { s, a }; setLastRead(v); save('lastRead', JSON.stringify(v)); }
+  function toggleTrans() { const v = !showTrans; setShowTrans(v); save('showTrans', v ? '1' : '0'); }
+
+  async function runSearch() {
+    const text = query.trim();
+    if (!text) return;
+    setFound({ state: 'loading', count: 0, matches: [], ar: isArabic(text), term: text });
+    try { setFound({ ...(await searchQuran(text)), state: 'ok', ar: isArabic(text), term: text }); }
+    catch { setFound({ state: 'error', count: 0, matches: [], ar: false, term: text }); }
+  }
+  function openResult(m) { const s = surahs.find(x => x.number === m.surah); if (s) { setFound(null); setQuery(''); openSurah(s, m.ayah); markRead(m.surah, m.ayah); } }
+  function highlight(text, term, ar) {
+    const clean = ar ? term.replace(/[ً-ٰٟۖ-ۭـ]/g, '') : term;
+    if (!clean) return text;
+    const escaped = clean.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const parts = text.split(new RegExp(`(${escaped})`, 'gi'));
+    return parts.map((p, i) => (p.toLowerCase() === clean.toLowerCase() ? <mark key={i}>{p}</mark> : p));
+  }
+
   async function openSurah(s, scrollTo) {
     stop(); setSurah(s); setAyahs([]); setStatus('loading');
     try {
@@ -87,6 +112,7 @@ export default function App() {
     a.playbackRate = speed;
     a.play().catch(() => setStatus('error'));
     setPlaying({ ayah });
+    markRead(surah.number, ayah);
     document.getElementById(`ayah-${ayah}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }
   const playRef = useRef(play);
@@ -128,7 +154,39 @@ export default function App() {
 
       {!surah && (
         <>
-          <input className="search" type="search" placeholder={t.search} value={query} onChange={e => setQuery(e.target.value)} />
+          <div className="search-row">
+            <input className="search" type="search" placeholder={t.searchPh} value={query}
+              onChange={e => { setQuery(e.target.value); setFound(null); }}
+              onKeyDown={e => e.key === 'Enter' && runSearch()} />
+            <button onClick={runSearch}>{t.searchAyahs}</button>
+          </div>
+
+          {lastRead && !q && surahs.length > 0 && (() => {
+            const s = surahs.find(x => x.number === lastRead.s);
+            return s && <button className="resume" onClick={() => openSurah(s, lastRead.a)}>{t.resume}: {surahName(s)} · {lastRead.a}</button>;
+          })()}
+
+          {found && (
+            <section className="results">
+              {found.state === 'loading' && <p className="msg">{t.searching}</p>}
+              {found.state === 'error' && <p className="msg err">{t.error}</p>}
+              {found.state === 'ok' && (
+                <>
+                  <h3>{found.count} {t.results}{found.count > 50 ? ` · ${t.showing} 50` : ''} <button className="ghost" onClick={() => setFound(null)}>{t.clear}</button></h3>
+                  {found.count === 0 && <p className="msg">{t.noResults}</p>}
+                  {found.matches.slice(0, 50).map(m => {
+                    const s = surahs.find(x => x.number === m.surah);
+                    return (
+                      <div key={`${m.surah}:${m.ayah}`} className="result" onClick={() => openResult(m)}>
+                        <small>{s && surahName(s)} · {m.ayah}</small>
+                        <p className={found.ar ? 'rtl' : ''} dir={found.ar ? 'rtl' : 'ltr'}>{highlight(m.text, found.term, found.ar)}</p>
+                      </div>
+                    );
+                  })}
+                </>
+              )}
+            </section>
+          )}
 
           {bookmarks.length > 0 && !q && surahs.length > 0 && (
             <section className="marks">
@@ -142,7 +200,7 @@ export default function App() {
             </section>
           )}
 
-          <ul className="surahs">
+          <ul className="surahs" hidden={!!found}>
             {filtered.map(s => (
               <li key={s.number} onClick={() => openSurah(s)}>
                 <span className="num">{s.number}</span>
@@ -159,10 +217,15 @@ export default function App() {
 
       {surah && (
         <main className="reader">
+          <div className="reader-tools">
+            <button onClick={() => setFontSize(f => Math.max(20, f - 4))} aria-label="Smaller text">A−</button>
+            <button onClick={() => setFontSize(f => Math.min(60, f + 4))} aria-label="Larger text">A+</button>
+            <button className={showTrans ? '' : 'off'} onClick={toggleTrans}>{t.translation}: {showTrans ? '✓' : '✗'}</button>
+          </div>
           {ayahs.map(a => (
-            <div key={a.number} id={`ayah-${a.number}`} className={'ayah' + (playing?.ayah === a.number ? ' playing' : '')} onClick={() => setSelected(a.number)}>
+            <div key={a.number} id={`ayah-${a.number}`} className={'ayah' + (playing?.ayah === a.number ? ' playing' : '')} onClick={() => { setSelected(a.number); markRead(surah.number, a.number); }}>
               <p className="ar">{a.ar} <span className="end">﴿{a.number.toLocaleString('ar-EG')}﴾</span>{isMarked(surah.number, a.number) && <span className="star"> ★</span>}</p>
-              <p className="en" dir="ltr">{a.en}</p>
+              {showTrans && <p className="en" dir="ltr">{a.en}</p>}
             </div>
           ))}
         </main>

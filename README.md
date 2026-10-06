@@ -9,6 +9,9 @@ A bilingual (Arabic / English) Quran web app. Read any surah, tap an ayah, and c
 - Tafsir for any ayah: Al-Muyassar, As-Saadi, Ibn Kathir (Arabic) and Ibn Kathir (English)
 - Continuous play, playback speed (0.75x–1.5x)
 - Search surahs by name or number (diacritic-insensitive)
+- Full-text search across every ayah, in Arabic or English, with highlighted matches
+- "Continue reading" resumes from your last ayah
+- Adjustable Arabic text size and a show/hide translation toggle
 - Bookmarks, remembered reciter / language / speed
 - Arabic (RTL) and English (LTR) UI, light/dark mode
 - Installable PWA

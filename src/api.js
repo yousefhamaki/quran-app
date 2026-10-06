@@ -61,3 +61,21 @@ export async function fetchTafsir(tafsirId, surah, ayah) {
   tafsirCache.set(key, text);
   return text;
 }
+
+const AR_DIACRITICS = /[\u064B-\u065F\u0670\u06D6-\u06ED\u0640]/g;
+export const isArabic = s => /[\u0600-\u06FF]/.test(s);
+
+// Full-text search over every ayah. Arabic queries hit the diacritic-free text.
+export async function searchQuran(query) {
+  const ar = isArabic(query);
+  const q = ar ? query.replace(AR_DIACRITICS, '') : query;
+  const edition = ar ? 'quran-simple-clean' : 'en.sahih';
+  const r = await fetch(`${BASE}/search/${encodeURIComponent(q)}/all/${edition}`);
+  if (r.status === 404) return { count: 0, matches: [] }; // API answers 404 when nothing matches
+  if (!r.ok) throw new Error('Search failed');
+  const { count, matches } = (await r.json()).data;
+  return {
+    count,
+    matches: matches.map(m => ({ surah: m.surah.number, ayah: m.numberInSurah, text: m.text.replace(/^\uFEFF/, '') })),
+  };
+}
