@@ -34,3 +34,30 @@ export async function fetchSurah(n) {
     en: en.ayahs[i].text,
   }));
 }
+
+// Quran.com tafsir resource ids (free, CORS-enabled).
+export const TAFSIRS = [
+  { id: 16, ar: 'التفسير الميسر', en: 'Al-Muyassar (Arabic)', dir: 'rtl' },
+  { id: 91, ar: 'تفسير السعدي', en: 'As-Saadi (Arabic)', dir: 'rtl' },
+  { id: 14, ar: 'تفسير ابن كثير', en: 'Ibn Kathir (Arabic)', dir: 'rtl' },
+  { id: 169, ar: 'ابن كثير (إنجليزي)', en: 'Ibn Kathir (English)', dir: 'ltr' },
+];
+
+const tafsirCache = new Map();
+
+// The API returns light HTML; reduce it to plain text so it is safe to render.
+function htmlToText(html) {
+  const withBreaks = html.replace(/<\/(p|h\d|div|li)>|<br\s*\/?>/gi, '\n');
+  const text = new DOMParser().parseFromString(withBreaks, 'text/html').body.textContent || '';
+  return text.replace(/\n{3,}/g, '\n\n').trim();
+}
+
+export async function fetchTafsir(tafsirId, surah, ayah) {
+  const key = `${tafsirId}:${surah}:${ayah}`;
+  if (tafsirCache.has(key)) return tafsirCache.get(key);
+  const r = await fetch(`https://api.quran.com/api/v4/tafsirs/${tafsirId}/by_ayah/${surah}:${ayah}`);
+  if (!r.ok) throw new Error('Failed to load tafsir');
+  const text = htmlToText((await r.json()).tafsir.text);
+  tafsirCache.set(key, text);
+  return text;
+}

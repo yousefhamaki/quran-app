@@ -34,3 +34,8 @@ button.ghost { background:transparent; color:var(--accent); }
 .player select { font:inherit; padding:6px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--fg); }
 .auto { display:flex; align-items:center; gap:4px; font-size:.9rem; }
 .sheet-actions { display:flex; justify-content:space-between; margin-top:8px; }
+.tafsir-bar { display:flex; gap:8px; align-items:center; margin:8px 0; }
+.tafsir-bar select { flex:1; font:inherit; padding:8px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--fg); }
+.tafsir-text { white-space:pre-wrap; line-height:1.9; font-size:1.05rem; }
+.tafsir-text.rtl { direction:rtl; text-align:right; font-family:'Amiri Quran',serif; font-size:1.3rem; line-height:2.2; }
+.tafsir-ayah { font-family:'Amiri Quran',serif; font-size:1.5rem; direction:rtl; text-align:right; margin:0 0 8px; color:var(--accent); }

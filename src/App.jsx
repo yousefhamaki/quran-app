@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { RECITERS, audioUrl, fetchSurahs, fetchSurah } from './api.js';
+import { RECITERS, TAFSIRS, audioUrl, fetchSurahs, fetchSurah, fetchTafsir } from './api.js';
 
 const T = {
-  en: { title: 'Holy Quran', ayahs: 'ayahs', back: 'Surahs', choose: 'Choose a reciter', pause: 'Stop', next: 'Next ayah', close: 'Close', loading: 'Loading...', error: 'Something went wrong. Check your connection.', lang: 'العربية', search: 'Search surah (name or number)', bookmarks: 'Bookmarks', bookmark: 'Bookmark', unbookmark: 'Remove bookmark', auto: 'Continuous', ayah: 'Ayah', noResults: 'No results' },
-  ar: { title: 'القرآن الكريم', ayahs: 'آية', back: 'السور', choose: 'اختر القارئ', pause: 'إيقاف', next: 'الآية التالية', close: 'إغلاق', loading: 'جارٍ التحميل...', error: 'حدث خطأ. تحقق من الاتصال.', lang: 'English', search: 'ابحث عن سورة (الاسم أو الرقم)', bookmarks: 'العلامات', bookmark: 'إضافة علامة', unbookmark: 'إزالة العلامة', auto: 'تشغيل متواصل', ayah: 'آية', noResults: 'لا نتائج' },
+  en: { title: 'Holy Quran', ayahs: 'ayahs', back: 'Surahs', choose: 'Choose a reciter', pause: 'Stop', next: 'Next ayah', close: 'Close', loading: 'Loading...', error: 'Something went wrong. Check your connection.', lang: 'العربية', search: 'Search surah (name or number)', bookmarks: 'Bookmarks', bookmark: 'Bookmark', unbookmark: 'Remove bookmark', auto: 'Continuous', ayah: 'Ayah', noResults: 'No results', tafsir: 'Tafsir', tafsirLoading: 'Loading tafsir...', tafsirEmpty: 'No tafsir available for this ayah.' },
+  ar: { title: 'القرآن الكريم', ayahs: 'آية', back: 'السور', choose: 'اختر القارئ', pause: 'إيقاف', next: 'الآية التالية', close: 'إغلاق', loading: 'جارٍ التحميل...', error: 'حدث خطأ. تحقق من الاتصال.', lang: 'English', search: 'ابحث عن سورة (الاسم أو الرقم)', bookmarks: 'العلامات', bookmark: 'إضافة علامة', unbookmark: 'إزالة العلامة', auto: 'تشغيل متواصل', ayah: 'آية', noResults: 'لا نتائج', tafsir: 'التفسير', tafsirLoading: 'جارٍ تحميل التفسير...', tafsirEmpty: 'لا يوجد تفسير لهذه الآية.' },
 };
 
 const SPEEDS = [0.75, 1, 1.25, 1.5];
@@ -28,6 +28,9 @@ export default function App() {
   const [selected, setSelected] = useState(null); // ayah number whose reciter sheet is open
   const [playing, setPlaying] = useState(null); // { ayah }
   const [status, setStatus] = useState('loading');
+  const [tafsirId, setTafsirId] = useState(Number(load('tafsir', String(TAFSIRS[0].id))));
+  const [tafsirAyah, setTafsirAyah] = useState(null); // ayah whose tafsir panel is open
+  const [tafsirText, setTafsirText] = useState({ state: 'idle', text: '' });
   const audio = useRef(new Audio());
   const t = T[lang];
 
@@ -55,6 +58,19 @@ export default function App() {
     a.addEventListener('ended', onEnd);
     return () => { a.removeEventListener('ended', onEnd); a.pause(); };
   }, []);
+
+  useEffect(() => {
+    if (!tafsirAyah || !surah) return;
+    let cancelled = false;
+    setTafsirText({ state: 'loading', text: '' });
+    fetchTafsir(tafsirId, surah.number, tafsirAyah)
+      .then(text => !cancelled && setTafsirText({ state: 'ok', text }))
+      .catch(() => !cancelled && setTafsirText({ state: 'error', text: '' }));
+    return () => { cancelled = true; };
+  }, [tafsirId, tafsirAyah, surah]);
+
+  function openTafsir() { setTafsirAyah(selected); setSelected(null); }
+  function changeTafsir(id) { setTafsirId(id); save('tafsir', String(id)); }
 
   async function openSurah(s, scrollTo) {
     stop(); setSurah(s); setAyahs([]); setStatus('loading');
@@ -102,7 +118,7 @@ export default function App() {
   return (
     <div className="app">
       <header>
-        {surah && <button className="ghost" onClick={() => { stop(); setSelected(null); setSurah(null); setStatus('ok'); }}>{t.back}</button>}
+        {surah && <button className="ghost" onClick={() => { stop(); setSelected(null); setTafsirAyah(null); setSurah(null); setStatus('ok'); }}>{t.back}</button>}
         <h1>{surah ? surahName(surah) : t.title}</h1>
         <button className="ghost" onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')}>{t.lang}</button>
       </header>
@@ -164,6 +180,26 @@ export default function App() {
         </div>
       )}
 
+      {tafsirAyah && surah && (
+        <div className="overlay" onClick={() => setTafsirAyah(null)}>
+          <div className="sheet" onClick={e => e.stopPropagation()}>
+            <h2>{t.tafsir} <small>({surahName(surah)} {tafsirAyah})</small></h2>
+            <p className="tafsir-ayah">{ayahs.find(a => a.number === tafsirAyah)?.ar}</p>
+            <div className="tafsir-bar">
+              <select value={tafsirId} onChange={e => changeTafsir(Number(e.target.value))}>
+                {TAFSIRS.map(x => <option key={x.id} value={x.id}>{lang === 'ar' ? x.ar : x.en}</option>)}
+              </select>
+              <button className="ghost" onClick={() => setTafsirAyah(null)}>{t.close}</button>
+            </div>
+            {tafsirText.state === 'loading' && <p className="msg">{t.tafsirLoading}</p>}
+            {tafsirText.state === 'error' && <p className="msg err">{t.error}</p>}
+            {tafsirText.state === 'ok' && (
+              <div className={'tafsir-text ' + TAFSIRS.find(x => x.id === tafsirId).dir}>{tafsirText.text || t.tafsirEmpty}</div>
+            )}
+          </div>
+        </div>
+      )}
+
       {selected && surah && (
         <div className="overlay" onClick={() => setSelected(null)}>
           <div className="sheet" onClick={e => e.stopPropagation()}>
@@ -176,6 +212,7 @@ export default function App() {
               ))}
             </ul>
             <div className="sheet-actions">
+              <button className="ghost" onClick={openTafsir}>📖 {t.tafsir}</button>
               <button className="ghost" onClick={() => { toggleBookmark(surah.number, selected); setSelected(null); }}>
                 {isMarked(surah.number, selected) ? `★ ${t.unbookmark}` : `☆ ${t.bookmark}`}
               </button>

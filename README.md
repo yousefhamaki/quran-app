@@ -6,6 +6,7 @@ A bilingual (Arabic / English) Quran web app. Read any surah, tap an ayah, and c
 
 - All 114 surahs, Arabic (Uthmani) text with English Sahih International translation
 - Tap any ayah → pick from 10 reciters → that ayah plays in their voice
+- Tafsir for any ayah: Al-Muyassar, As-Saadi, Ibn Kathir (Arabic) and Ibn Kathir (English)
 - Continuous play, playback speed (0.75x–1.5x)
 - Search surahs by name or number (diacritic-insensitive)
 - Bookmarks, remembered reciter / language / speed
@@ -17,6 +18,7 @@ A bilingual (Arabic / English) Quran web app. Read any surah, tap an ayah, and c
 | Purpose | API |
 |---|---|
 | Quran text + translation | [AlQuran Cloud](https://alquran.cloud/api) |
+| Tafsir | [Quran.com API v4](https://api.quran.com/api/v4) |
 | Per-ayah audio | [EveryAyah](https://everyayah.com) |
 
 Reciters are listed in [`src/api.js`](src/api.js); add more by appending an EveryAyah folder name.
