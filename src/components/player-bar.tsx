@@ -136,7 +136,7 @@ export function PlayerBar({ surahs }: { surahs: Surah[] }) {
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label>{t('reciter')}</Label>
-                <Select value={playing.reciter} onValueChange={changeReciter}>
+                <Select value={playing.reciter} onValueChange={id => { update({ reciter: id }); changeReciter(id); }}>
                   <SelectTrigger className="h-11 w-full rounded-xl"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {pinned.length > 0 && (

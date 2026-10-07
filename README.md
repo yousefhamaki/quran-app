@@ -8,11 +8,12 @@ A premium, bilingual (Arabic / English) Quran web app. Read any surah, tap an ay
 ## Features
 
 - All 114 surahs, Arabic (Uthmani) text with English Sahih International translation
-- Tap any ayah → pick from 10 reciters → that ayah plays in their voice; continuous play, speed 0.75x–1.5x
+- Tap any ayah to play it instantly with your saved reciter and settings (tap again to pause); the ⋯ button opens reciter, tafsir and bookmark. "Play surah" starts from ayah 1. Continuous play, speed 0.75x–1.5x
+- Every choice is remembered on the device: reciter, speed, text size, theme, language, tafsir, pause, repeat, memorize mode, pinned reciters
 - **Memorize mode**: blurs the Arabic text so you recite from memory; reveal one ayah or all of them with the eye buttons
 - **Repeat each ayah** 2×, 3×, 5×, 7×, 10× or forever, with a "Repeat 2/5" indicator, for memorizing
 - **Pause between ayahs**: set Normal or 1–60 seconds of silence after each ayah (with a live "Your turn" countdown) so you can repeat it yourself; works with continuous play and repeat-ayah
-- Tafsir for any ayah: Al-Muyassar, As-Saadi, Ibn Kathir (Arabic) and Ibn Kathir (English)
+- **Tafsir button on every ayah**: opens a dedicated reader with all sources one tap away (Al-Muyassar, As-Saadi, Ibn Kathir Arabic, Ibn Kathir English) and previous/next ayah navigation; your source choice is remembered
 - Surah-name filter and full-text search across every ayah (Arabic or English) with highlighted matches
 - "Continue reading", bookmarks, adjustable text size, show/hide translation
 - Light / dark / system theme, Arabic (RTL) and English (LTR) UI, deep links (`#/s/2/255`)

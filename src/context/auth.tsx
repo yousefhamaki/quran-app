@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { backend, syncAvailable, ApiError, type ApiBookmark, type ApiUser } from '@/lib/backend';
-import { useSettings } from '@/context/settings';
+import { useSettings, DEFAULT_SETTINGS } from '@/context/settings';
 import { useLibrary, type Mark } from '@/context/library';
 
 interface AuthContextValue {
@@ -54,7 +54,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       bookmarks: merged,
       ...(progress.surah && progress.ayah ? { lastRead: { surah: progress.surah, ayah: progress.ayah } } : {}),
     });
-    replace(prefs);
+    // The server answers with plain defaults when nothing is stored yet; in that case keep the user's saved local settings (they get pushed up afterwards).
+    const serverIsDefault = (Object.keys(DEFAULT_SETTINGS) as (keyof typeof DEFAULT_SETTINGS)[]).every(k => prefs[k] === DEFAULT_SETTINGS[k]);
+    if (!serverIsDefault) replace(prefs);
   }, [replace, replaceAll]);
 
   // Restore an existing session on load.

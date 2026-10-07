@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Bookmark, Brain, Eye, EyeOff, Volume2 } from 'lucide-react';
+import { Bookmark, BookOpenText, Brain, Eye, EyeOff, MoreHorizontal, Play, Volume2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -12,6 +12,7 @@ interface Props {
   surah: Surah;
   focusAyah: number | null;
   onSelectAyah: (ayah: number) => void;
+  onOpenTafsir: (ayah: number) => void;
 }
 
 /** Ornamental ayah-end marker. */
@@ -23,10 +24,10 @@ function AyahMark({ n }: { n: number }) {
   );
 }
 
-export function Reader({ surah, focusAyah, onSelectAyah }: Props) {
+export function Reader({ surah, focusAyah, onSelectAyah, onOpenTafsir }: Props) {
   const { settings, memorize, setMemorize, t } = useSettings();
   const { isBookmarked, markRead } = useLibrary();
-  const { playing, setSurahLength } = usePlayer();
+  const { playing, setSurahLength, play, toggle } = usePlayer();
   const [ayahs, setAyahs] = useState<Ayah[]>([]);
   const [state, setState] = useState<'loading' | 'ok' | 'error'>('loading');
   const [attempt, setAttempt] = useState(0);
@@ -40,6 +41,12 @@ export function Reader({ surah, focusAyah, onSelectAyah }: Props) {
       if (!next.delete(n)) next.add(n);
       return next;
     });
+
+  // Tap = play straight away with the saved reciter and settings; tapping the loaded ayah pauses/resumes it.
+  const playAyah = (n: number) => {
+    if (playing?.surah === surah.number && playing.ayah === n) toggle();
+    else play(surah.number, n);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -104,6 +111,14 @@ export function Reader({ surah, focusAyah, onSelectAyah }: Props) {
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2 px-2">
         <Button
           type="button"
+          size="sm"
+          className="h-11 gap-2 rounded-full px-5"
+          onClick={() => play(surah.number, 1)}
+        >
+          <Play className="size-4 fill-current rtl:-scale-x-100" aria-hidden /> {t('playSurah')}
+        </Button>
+        <Button
+          type="button"
           variant={memorize ? 'default' : 'outline'}
           size="sm"
           className="h-11 gap-2 rounded-full px-4"
@@ -142,7 +157,7 @@ export function Reader({ surah, focusAyah, onSelectAyah }: Props) {
             >
               <button
                 type="button"
-                onClick={() => { markRead(surah.number, a.number); onSelectAyah(a.number); }}
+                onClick={() => playAyah(a.number)}
                 aria-label={`${t('ayah')} ${a.number}`}
                 className={cn(
                   'group block w-full rounded-2xl px-4 py-5 text-start transition-colors duration-200 hover:bg-accent/60 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
@@ -163,8 +178,8 @@ export function Reader({ surah, focusAyah, onSelectAyah }: Props) {
                   <p dir="ltr" className="mt-3 text-start text-[0.95rem] leading-relaxed text-muted-foreground">{a.en}</p>
                 )}
               </button>
-              {memorize && (
-                <div className="flex justify-end px-3 pb-1">
+              <div className="flex items-center justify-end gap-1 px-3 pb-1">
+                {memorize && (
                   <Button
                     type="button"
                     variant="ghost"
@@ -176,8 +191,28 @@ export function Reader({ surah, focusAyah, onSelectAyah }: Props) {
                     {hidden ? <Eye className="size-4" aria-hidden /> : <EyeOff className="size-4" aria-hidden />}
                     {hidden ? t('revealAyah') : t('hideAyah')}
                   </Button>
-                </div>
-              )}
+                )}
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="h-11 gap-2 rounded-full px-4 text-secondary-foreground"
+                  aria-label={`${t('tafsirHint')} · ${t('ayah')} ${a.number}`}
+                  onClick={() => onOpenTafsir(a.number)}
+                >
+                  <BookOpenText className="size-4" aria-hidden /> {t('tafsir')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-11 rounded-full text-muted-foreground"
+                  aria-label={`${t('ayahOptions')} · ${t('ayah')} ${a.number}`}
+                  onClick={() => { markRead(surah.number, a.number); onSelectAyah(a.number); }}
+                >
+                  <MoreHorizontal className="size-5" aria-hidden />
+                </Button>
+              </div>
               {i < ayahs.length - 1 && <div className="mx-4 h-px bg-border/70" role="presentation" />}
             </li>
           );
