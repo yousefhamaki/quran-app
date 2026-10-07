@@ -15,5 +15,5 @@
     "paths": { "@/*": ["./src/*"] }
   },
   "include": ["src", "vite.config.ts"],
-  "exclude": ["backend", "node_modules", "dist"]
+  "exclude": ["backend", "mobile", "node_modules", "dist"]
 }

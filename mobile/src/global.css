@@ -1,0 +1,68 @@
+@import 'tailwindcss';
+@import 'uniwind';
+
+/*
+ * Design tokens — same palette as the web app (design-system/quran-app/MASTER.md).
+ * Emerald (primary) on warm ivory; gold is reserved for ornament.
+ */
+@layer theme {
+  :root {
+    @variant light {
+      --color-background: #faf7f0;
+      --color-foreground: #1c2a24;
+      --color-card: #ffffff;
+      --color-card-foreground: #1c2a24;
+      --color-popover: #ffffff;
+      --color-popover-foreground: #1c2a24;
+      --color-primary: #0b5d4b;
+      --color-primary-foreground: #ffffff;
+      --color-secondary: #e6f1ec;
+      --color-secondary-foreground: #0b4a3b;
+      --color-muted: #f1ede2;
+      --color-muted-foreground: #5b6b63;
+      --color-accent: #e6f1ec;
+      --color-accent-foreground: #0b4a3b;
+      --color-destructive: #c0392b;
+      --color-border: #e4ddcb;
+      --color-input: #d9d1bb;
+      --color-ring: #0b5d4b;
+      --color-gold: #b7892b;
+      --color-gold-foreground: #7a5a12;
+    }
+
+    @variant dark {
+      --color-background: #0c1512;
+      --color-foreground: #eaf1ec;
+      --color-card: #121e19;
+      --color-card-foreground: #eaf1ec;
+      --color-popover: #121e19;
+      --color-popover-foreground: #eaf1ec;
+      --color-primary: #4fc596;
+      --color-primary-foreground: #06231a;
+      --color-secondary: #1a2822;
+      --color-secondary-foreground: #cfe6da;
+      --color-muted: #1a2822;
+      --color-muted-foreground: #9db0a6;
+      --color-accent: #1f3a2e;
+      --color-accent-foreground: #cfe6da;
+      --color-destructive: #ef6a5b;
+      --color-border: #24352d;
+      --color-input: #2d4238;
+      --color-ring: #4fc596;
+      --color-gold: #e0b65a;
+      --color-gold-foreground: #e9c978;
+    }
+  }
+}
+
+@theme {
+  --font-sans: 'Inter_400Regular';
+  --font-sans-medium: 'Inter_500Medium';
+  --font-sans-semibold: 'Inter_600SemiBold';
+  --font-display: 'CormorantGaramond_600SemiBold';
+  --font-quran: 'AmiriQuran_400Regular';
+  --font-arabic: 'NotoSansArabic_400Regular';
+  --font-arabic-medium: 'NotoSansArabic_500Medium';
+  --font-arabic-semibold: 'NotoSansArabic_600SemiBold';
+  --font-naskh: 'NotoNaskhArabic_600SemiBold';
+}

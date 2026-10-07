@@ -7,3 +7,5 @@ backend/node_modules
 backend/dist
 backend/.env
 coverage
+mobile/node_modules
+mobile/.expo

@@ -3,6 +3,7 @@
 A premium, bilingual (Arabic / English) Quran web app. Read any surah, tap an ayah, and choose which sheikh recites it.
 
 - **Frontend:** React 19 + Vite + TypeScript + Tailwind v4 + **shadcn/ui** (design system in [`design-system/quran-app/MASTER.md`](design-system/quran-app/MASTER.md))
+- **Mobile (Android & iOS):** React Native + Expo + Uniwind + React Native Reusables in [`mobile/`](mobile/README.md), shipped as APK/IPA builds for Diawi
 - **Backend (optional sync):** Express + TypeScript following the Hamaki SOLID standard — see [`backend/`](backend/README.md)
 
 ## Features

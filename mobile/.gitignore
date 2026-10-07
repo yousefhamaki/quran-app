@@ -1,0 +1,23 @@
+node_modules/
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native build output (the android/ and ios/ projects themselves are kept; they are what Diawi builds come from)
+android/.gradle/
+android/build/
+android/app/build/
+android/app/.cxx/
+android/local.properties
+android/*.keystore
+ios/Pods/
+ios/build/
+ios/*.xcworkspace/xcuserdata/
+*.apk
+*.aab
+*.ipa
+
+.env
+.env.local
+builds/
