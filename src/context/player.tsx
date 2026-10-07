@@ -9,8 +9,6 @@ export interface Playing {
   reciter: string;
 }
 
-export type RepeatMode = 'off' | 'ayah';
-
 interface PlayerContextValue {
   /** The ayah the player is loaded with (null = player closed). */
   playing: Playing | null;
@@ -20,7 +18,12 @@ interface PlayerContextValue {
   failed: boolean;
   time: number;
   duration: number;
-  repeat: RepeatMode;
+  /** Which pass of the current ayah is playing (1 = first). */
+  pass: number;
+  /** Seconds left in the pause between ayahs, or null when not in a pause. */
+  gapLeft: number | null;
+  gapTotal: number;
+  gapPaused: boolean;
   /** Number of ayahs in the surah being read, so "next" knows where to stop. */
   setSurahLength: (n: number) => void;
   play: (surah: number, ayah: number, reciter?: string) => void;
@@ -31,13 +34,12 @@ interface PlayerContextValue {
   seek: (seconds: number) => void;
   /** Switch the reciter for the loaded ayah (restarts it with the new voice). */
   changeReciter: (reciter: string) => void;
-  toggleRepeat: () => void;
 }
 
 const PlayerContext = createContext<PlayerContextValue | null>(null);
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
-  const { settings } = useSettings();
+  const { settings, gapSeconds, repeatTimes } = useSettings();
   const { markRead } = useLibrary();
   const audio = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState<Playing | null>(null);
@@ -46,18 +48,28 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [failed, setFailed] = useState(false);
   const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [repeat, setRepeat] = useState<RepeatMode>('off');
+  const [pass, setPass] = useState(1);
+  const passRef = useRef(1);
   const surahLength = useRef(0);
 
+  // Pause between ayahs ("your turn" to repeat). gapLeft counts down in seconds.
+  const [gapLeft, setGapLeft] = useState<number | null>(null);
+  const [gapTotal, setGapTotal] = useState(0);
+  const [gapPaused, setGapPaused] = useState(false);
+  const pendingAction = useRef<'next' | 'repeat'>('next');
+
   // The audio listeners are registered once, so they read the latest values from a ref.
-  const live = useRef({ playing, continuous: settings.continuous, speed: settings.speed, repeat });
-  live.current = { playing, continuous: settings.continuous, speed: settings.speed, repeat };
+  const live = useRef({ playing, continuous: settings.continuous, speed: settings.speed, repeatTimes, gap: gapSeconds });
+  live.current = { playing, continuous: settings.continuous, speed: settings.speed, repeatTimes, gap: gapSeconds };
 
   const play = useCallback(
     (surah: number, ayah: number, reciter = settings.reciter) => {
       const el = audio.current;
       if (!el) return;
       setFailed(false);
+      passRef.current = 1;
+      setPass(1);
+      setGapLeft(null);
       setLoading(true);
       setTime(0);
       setDuration(0);
@@ -74,6 +86,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const stop = useCallback(() => {
     audio.current?.pause();
+    setGapLeft(null);
     setPlaying(null);
     setIsPlaying(false);
     setLoading(false);
@@ -90,6 +103,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const p = live.current.playing;
     const el = audio.current;
     if (!p || !el) return;
+    setGapLeft(null);
     // Like most players: past the first seconds, "previous" restarts the current ayah.
     if (el.currentTime > 3 || p.ayah <= 1) { el.currentTime = 0; void el.play().catch(() => {}); }
     else playRef.current(p.surah, p.ayah - 1, p.reciter);
@@ -98,6 +112,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const toggle = useCallback(() => {
     const el = audio.current;
     if (!el || !live.current.playing) return;
+    if (gapRef.current) { setGapPaused(v => !v); return; } // pause / resume the countdown
     if (!el.paused) { el.pause(); return; }
     if (el.ended) el.currentTime = 0;
     el.play().catch(() => setFailed(true));
@@ -106,6 +121,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const seek = useCallback((seconds: number) => {
     const el = audio.current;
     if (!el) return;
+    setGapLeft(null);
     el.currentTime = seconds;
     setTime(seconds);
   }, []);
@@ -115,18 +131,34 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (p) playRef.current(p.surah, p.ayah, reciter);
   }, []);
 
-  const toggleRepeat = useCallback(() => setRepeat(r => (r === 'off' ? 'ayah' : 'off')), []);
 
   useEffect(() => {
     const el = new Audio();
     audio.current = el;
+    const schedule = (kind: 'next' | 'repeat') => {
+      const gap = live.current.gap;
+      if (gap <= 0) { runAction(kind); return; }
+      pendingAction.current = kind;
+      setGapPaused(false);
+      setGapTotal(gap);
+      setGapLeft(gap);
+    };
     const onEnded = () => {
-      const { repeat: rep, continuous } = live.current;
-      if (rep === 'ayah') { el.currentTime = 0; void el.play().catch(() => {}); return; }
-      const p = live.current.playing;
-      if (continuous && p && p.ayah < surahLength.current) next();
+      const { repeatTimes: times, continuous, playing: p } = live.current;
+      // times: 1 = once, N = N plays in total, 0 = forever.
+      if (times === 0 || passRef.current < times) schedule('repeat');
+      else if (continuous && p && p.ayah < surahLength.current) schedule('next');
       else setIsPlaying(false);
     };
+    const runAction = (kind: 'next' | 'repeat') => {
+      if (kind === 'repeat') {
+        passRef.current += 1;
+        setPass(passRef.current);
+        el.currentTime = 0;
+        void el.play().catch(() => {});
+      } else next();
+    };
+    runActionRef.current = runAction;
     const onPlay = () => setIsPlaying(true);
     const onPause = () => setIsPlaying(false);
     const onPlaying = () => { setLoading(false); setIsPlaying(true); };
@@ -144,11 +176,29 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => { if (audio.current) audio.current.playbackRate = settings.speed; }, [settings.speed]);
 
+  const gapRef = useRef(false);
+  gapRef.current = gapLeft !== null;
+  const runActionRef = useRef<(kind: 'next' | 'repeat') => void>(() => {});
+
+  const gapActive = gapLeft !== null;
+  useEffect(() => {
+    if (!gapActive || gapPaused) return;
+    const id = setInterval(() => setGapLeft(l => (l === null ? null : Math.max(0, l - 0.1))), 100);
+    return () => clearInterval(id);
+  }, [gapActive, gapPaused]);
+
+  useEffect(() => {
+    if (gapLeft !== null && gapLeft <= 0) {
+      setGapLeft(null);
+      runActionRef.current(pendingAction.current);
+    }
+  }, [gapLeft]);
+
   const setSurahLength = useCallback((n: number) => { surahLength.current = n; }, []);
 
   const value = useMemo(
-    () => ({ playing, isPlaying, loading, failed, time, duration, repeat, setSurahLength, play, toggle, stop, next, previous, seek, changeReciter, toggleRepeat }),
-    [playing, isPlaying, loading, failed, time, duration, repeat, setSurahLength, play, toggle, stop, next, previous, seek, changeReciter, toggleRepeat],
+    () => ({ playing, isPlaying, loading, failed, time, duration, pass, gapLeft, gapTotal, gapPaused, setSurahLength, play, toggle, stop, next, previous, seek, changeReciter }),
+    [playing, isPlaying, loading, failed, time, duration, pass, gapLeft, gapTotal, gapPaused, setSurahLength, play, toggle, stop, next, previous, seek, changeReciter],
   );
   return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;
 }

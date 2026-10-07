@@ -31,6 +31,12 @@ interface SettingsContextValue {
   /** Reciters the user pinned; shown first everywhere. Local to this device. */
   pinned: string[];
   togglePin: (reciterId: string) => void;
+  /** Seconds of silence between ayahs (0 = normal playback). Local to this device. */
+  gapSeconds: number;
+  setGapSeconds: (seconds: number) => void;
+  /** How many times each ayah plays before moving on: 1 = once (off), 0 = repeat forever. Local to this device. */
+  repeatTimes: number;
+  setRepeatTimes: (times: number) => void;
   t: (key: TKey, vars?: Record<string, string | number>) => string;
 }
 
@@ -42,6 +48,16 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
   const [pinned, setPinned] = useState<string[]>(() => loadJSON<string[]>('quran.pinnedReciters', []).filter(id => RECITERS.some(r => r.id === id)));
   useEffect(() => saveJSON('quran.pinnedReciters', pinned), [pinned]);
+  const [gapSeconds, setGapState] = useState<number>(() => {
+    const v = Number(loadJSON<number>('quran.gapSeconds', 0));
+    return Number.isFinite(v) ? Math.min(60, Math.max(0, Math.round(v))) : 0;
+  });
+  const setGapSeconds = useCallback((s: number) => { setGapState(s); saveJSON('quran.gapSeconds', s); }, []);
+  const [repeatTimes, setRepeatState] = useState<number>(() => {
+    const v = Number(loadJSON<number>('quran.repeatTimes', 1));
+    return Number.isInteger(v) && v >= 0 && v <= 50 ? v : 1;
+  });
+  const setRepeatTimes = useCallback((n: number) => { setRepeatState(n); saveJSON('quran.repeatTimes', n); }, []);
   const togglePin = useCallback((id: string) => setPinned(p => (p.includes(id) ? p.filter(x => x !== id) : [...p, id])), []);
 
   useEffect(() => {
@@ -63,7 +79,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     [settings.lang],
   );
 
-  const value = useMemo(() => ({ settings, update, replace, pinned, togglePin, t }), [settings, update, replace, pinned, togglePin, t]);
+  const value = useMemo(() => ({ settings, update, replace, pinned, togglePin, gapSeconds, setGapSeconds, repeatTimes, setRepeatTimes, t }), [settings, update, replace, pinned, togglePin, gapSeconds, setGapSeconds, repeatTimes, setRepeatTimes, t]);
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
 }
 

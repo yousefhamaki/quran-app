@@ -54,7 +54,7 @@ export function AyahSheet({ surah, ayah, open, onOpenChange }: Props) {
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="mx-auto max-h-[88dvh] w-full max-w-3xl gap-0 rounded-t-3xl p-0">
+      <SheetContent side="bottom" className="mx-auto max-h-[92dvh] w-full max-w-3xl gap-0 overflow-y-auto rounded-t-3xl p-0 [&>*]:shrink-0">
         <SheetHeader className="px-5 pt-5 pb-3 text-start">
           <SheetTitle className={cn('text-xl', ar ? 'font-quran' : 'font-display')}>
             {ar ? surah.name : surah.englishName} · {t('ayah')} {number}
@@ -62,14 +62,14 @@ export function AyahSheet({ surah, ayah, open, onOpenChange }: Props) {
           <SheetDescription className="sr-only">{t('chooseReciter')}</SheetDescription>
         </SheetHeader>
 
-        <Tabs value={tab} onValueChange={setTab} className="min-h-0 flex-1 gap-0">
+        <Tabs value={tab} onValueChange={setTab} className="gap-0">
           <TabsList className="mx-5 grid h-11 grid-cols-2 rounded-xl">
             <TabsTrigger value="listen" className="gap-2 rounded-lg"><Headphones className="size-4" aria-hidden />{t('listen')}</TabsTrigger>
             <TabsTrigger value="tafsir" className="gap-2 rounded-lg"><ScrollText className="size-4" aria-hidden />{t('tafsir')}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="listen" className="min-h-0">
-            <ScrollArea className="h-[min(44dvh,22rem)]">
+            <ScrollArea className="h-[clamp(7rem,calc(100dvh-22rem),22rem)]">
               <ReciterList value={choice} onChange={setChoice} />
             </ScrollArea>
           </TabsContent>
@@ -85,7 +85,7 @@ export function AyahSheet({ surah, ayah, open, onOpenChange }: Props) {
                 </SelectContent>
               </Select>
             </div>
-            <ScrollArea className="h-[min(44dvh,22rem)]">
+            <ScrollArea className="h-[clamp(7rem,calc(100dvh-22rem),22rem)]">
               <div className="px-5 py-4" aria-live="polite">
                 {ayah && <p dir="rtl" className="mb-4 font-quran text-2xl text-primary">{ayah.ar}</p>}
                 {tafsir.state === 'loading' && (

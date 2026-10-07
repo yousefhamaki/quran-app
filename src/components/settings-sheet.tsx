@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { TAFSIRS } from '@/lib/quran';
 import { useOrderedReciters } from '@/components/reciter-list';
+import { GapControl } from '@/components/gap-control';
+import { RepeatControl } from '@/components/repeat-control';
 import type { Lang } from '@/lib/i18n';
 import { useSettings } from '@/context/settings';
 
@@ -138,6 +140,8 @@ export function SettingsSheet({ open, onOpenChange }: { open: boolean; onOpenCha
                   {SPEEDS.map(v => <ToggleGroupItem key={v} value={String(v)} className="h-11 flex-1">{v}x</ToggleGroupItem>)}
                 </ToggleGroup>
               </div>
+              <RepeatControl />
+              <GapControl idPrefix="settings-gap" />
               <Row id="continuous" label={t('continuous')}>
                 <Switch id="continuous" checked={settings.continuous} onCheckedChange={v => update({ continuous: v })} />
               </Row>

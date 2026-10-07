@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AlertCircle, ChevronUp, Loader2, Pause, Play, Repeat1, SkipBack, SkipForward, X } from 'lucide-react';
+import { AlertCircle, ChevronUp, Loader2, Pause, Play, SkipBack, SkipForward, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Slider } from '@/components/ui/slider';
@@ -7,8 +7,9 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Toggle } from '@/components/ui/toggle';
 import { useOrderedReciters } from '@/components/reciter-list';
+import { GapControl } from '@/components/gap-control';
+import { RepeatControl } from '@/components/repeat-control';
 import { cn } from '@/lib/utils';
 import { RECITERS, type Surah } from '@/lib/quran';
 import { useSettings } from '@/context/settings';
@@ -24,17 +25,18 @@ function formatTime(s: number) {
 
 function PlayPause({ className }: { className?: string }) {
   const { t } = useSettings();
-  const { isPlaying, loading, failed, toggle } = usePlayer();
+  const { isPlaying, loading, failed, toggle, gapLeft, gapPaused } = usePlayer();
+  const running = isPlaying || (gapLeft !== null && !gapPaused);
   return (
-    <Button size="icon" className={cn('size-12 rounded-full', className)} onClick={toggle} aria-label={isPlaying ? t('pause') : t('play')}>
-      {loading ? <Loader2 className="size-5 animate-spin" aria-hidden /> : failed ? <AlertCircle className="size-5" aria-hidden /> : isPlaying ? <Pause className="size-5 fill-current" aria-hidden /> : <Play className="size-5 fill-current rtl:-scale-x-100" aria-hidden />}
+    <Button size="icon" className={cn('size-12 rounded-full', className)} onClick={toggle} aria-label={running ? t('pause') : t('play')}>
+      {loading ? <Loader2 className="size-5 animate-spin" aria-hidden /> : failed ? <AlertCircle className="size-5" aria-hidden /> : running ? <Pause className="size-5 fill-current" aria-hidden /> : <Play className="size-5 fill-current rtl:-scale-x-100" aria-hidden />}
     </Button>
   );
 }
 
 export function PlayerBar({ surahs }: { surahs: Surah[] }) {
-  const { settings, update, t } = useSettings();
-  const { playing, failed, time, duration, repeat, stop, next, previous, seek, changeReciter, toggleRepeat } = usePlayer();
+  const { settings, update, repeatTimes, t } = useSettings();
+  const { playing, failed, time, duration, pass, gapLeft, gapTotal, gapPaused, stop, next, previous, seek, changeReciter } = usePlayer();
   const { pinned, others } = useOrderedReciters();
   const [open, setOpen] = useState(false);
   if (!playing) return null;
@@ -44,7 +46,9 @@ export function PlayerBar({ surahs }: { surahs: Surah[] }) {
   const surah = surahs.find(s => s.number === playing.surah);
   const reciterName = (r: { ar: string; en: string }) => (ar ? r.ar : r.en);
   const surahLabel = surah ? (ar ? surah.name : surah.englishName) : '';
-  const pct = duration > 0 ? Math.min(100, (time / duration) * 100) : 0;
+  const inGap = gapLeft !== null;
+  // During the pause between ayahs the line under the bar counts down instead of showing audio progress.
+  const pct = inGap ? (gapTotal > 0 ? Math.min(100, (gapLeft / gapTotal) * 100) : 0) : duration > 0 ? Math.min(100, (time / duration) * 100) : 0;
   const atEnd = surah ? playing.ayah >= surah.numberOfAyahs : false;
 
   return (
@@ -52,7 +56,7 @@ export function PlayerBar({ surahs }: { surahs: Surah[] }) {
       <div role="region" aria-label={t('nowPlaying')} className="fixed inset-x-0 bottom-0 z-40 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <div className="relative mx-auto max-w-3xl overflow-hidden rounded-3xl border bg-card/90 shadow-[var(--shadow-soft)] backdrop-blur-xl">
           <div className="h-1 w-full bg-muted" aria-hidden>
-            <div className="h-full bg-primary transition-[width] duration-200 ease-linear" style={{ width: `${pct}%` }} />
+            <div className={cn('h-full transition-[width] duration-100 ease-linear', inGap ? 'bg-gold' : 'bg-primary')} style={{ width: `${pct}%` }} />
           </div>
           <div className="flex items-center gap-2 p-2.5">
             <button
@@ -66,8 +70,12 @@ export function PlayerBar({ surahs }: { surahs: Surah[] }) {
               </span>
               <span className="min-w-0 flex-1">
                 <span className="ar-safe block truncate text-sm font-medium">{surahLabel}</span>
-                <span className={cn('block truncate text-xs', failed ? 'text-destructive' : 'text-muted-foreground')}>
-                  {failed ? t('error') : reciter ? reciterName(reciter) : ''}
+                <span className={cn('block truncate text-xs', failed ? 'text-destructive' : inGap ? 'font-medium text-gold-foreground' : 'text-muted-foreground')} aria-live={inGap ? 'polite' : 'off'}>
+                  {failed
+                    ? t('error')
+                    : inGap
+                      ? `${t('yourTurn')} · ${gapPaused ? t('gapPausedLabel') : t('gapSeconds', { n: Math.ceil(gapLeft) })}`
+                      : `${reciter ? reciterName(reciter) : ''}${repeatTimes !== 1 ? ` · ${repeatTimes === 0 ? t('repeatPassForever', { i: pass }) : t('repeatPass', { i: pass, n: repeatTimes })}` : ''}`}
                 </span>
               </span>
               <ChevronUp className="size-5 shrink-0 text-muted-foreground" aria-hidden />
@@ -112,9 +120,6 @@ export function PlayerBar({ surahs }: { surahs: Surah[] }) {
 
             {/* Transport */}
             <div className="flex items-center justify-center gap-3" dir="ltr">
-              <Toggle pressed={repeat === 'ayah'} onPressedChange={toggleRepeat} aria-label={t('repeatAyah')} className="size-11 rounded-full data-[state=on]:bg-accent data-[state=on]:text-primary">
-                <Repeat1 className="size-5" aria-hidden />
-              </Toggle>
               <Button variant="ghost" size="icon" className="size-12 rounded-full" onClick={previous} aria-label={t('previous')}>
                 <SkipBack className="size-6" aria-hidden />
               </Button>
@@ -154,6 +159,10 @@ export function PlayerBar({ surahs }: { surahs: Surah[] }) {
                   {SPEEDS.map(v => <ToggleGroupItem key={v} value={String(v)} className="h-11 flex-1">{v}x</ToggleGroupItem>)}
                 </ToggleGroup>
               </div>
+
+              <RepeatControl />
+
+              <GapControl idPrefix="player-gap" />
 
               <div className="flex min-h-11 items-center justify-between gap-4">
                 <Label htmlFor="player-continuous">{t('continuous')}</Label>
