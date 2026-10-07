@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Bookmark, Volume2 } from 'lucide-react';
+import { Bookmark, Brain, Eye, EyeOff, Volume2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -24,13 +24,22 @@ function AyahMark({ n }: { n: number }) {
 }
 
 export function Reader({ surah, focusAyah, onSelectAyah }: Props) {
-  const { settings, t } = useSettings();
+  const { settings, memorize, setMemorize, t } = useSettings();
   const { isBookmarked, markRead } = useLibrary();
   const { playing, setSurahLength } = usePlayer();
   const [ayahs, setAyahs] = useState<Ayah[]>([]);
   const [state, setState] = useState<'loading' | 'ok' | 'error'>('loading');
   const [attempt, setAttempt] = useState(0);
   const focused = useRef<string | null>(null);
+  // Ayahs the user has chosen to peek at while memorize mode is on.
+  const [revealed, setRevealed] = useState<Set<number>>(() => new Set());
+  useEffect(() => setRevealed(new Set()), [surah.number, memorize]);
+  const toggleReveal = (n: number) =>
+    setRevealed(prev => {
+      const next = new Set(prev);
+      if (!next.delete(n)) next.add(n);
+      return next;
+    });
 
   useEffect(() => {
     let cancelled = false;
@@ -92,12 +101,37 @@ export function Reader({ surah, focusAyah, onSelectAyah }: Props) {
           بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ
         </p>
       )}
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 px-2">
+        <Button
+          type="button"
+          variant={memorize ? 'default' : 'outline'}
+          size="sm"
+          className="h-11 gap-2 rounded-full px-4"
+          aria-pressed={memorize}
+          onClick={() => setMemorize(!memorize)}
+        >
+          <Brain className="size-4" aria-hidden /> {t('memorize')}
+        </Button>
+        {memorize && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-11 gap-2 rounded-full px-4"
+            onClick={() => setRevealed(revealed.size === ayahs.length ? new Set() : new Set(ayahs.map(a => a.number)))}
+          >
+            {revealed.size === ayahs.length ? <EyeOff className="size-4" aria-hidden /> : <Eye className="size-4" aria-hidden />}
+            {revealed.size === ayahs.length ? t('hideAll') : t('revealAll')}
+          </Button>
+        )}
+      </div>
       <ol>
         {ayahs.map((a, i) => {
           const isPlaying = playing?.surah === surah.number && playing.ayah === a.number;
           const marked = isBookmarked(surah.number, a.number);
           // The API prepends the basmala to ayah 1 of most surahs; it is shown as the heading above instead.
           const hasBasmala = a.number === 1 && surah.number !== 1 && surah.number !== 9 && normalize(a.ar).startsWith('بسم الله الرحمن الرحيم');
+          const hidden = memorize && !revealed.has(a.number);
           const text = hasBasmala ? a.ar.replace(/^(\S+\s+){4}/, '') : a.ar;
           return (
             <li
@@ -115,7 +149,12 @@ export function Reader({ surah, focusAyah, onSelectAyah }: Props) {
                   isPlaying && 'ayah-playing bg-accent',
                 )}
               >
-                <p dir="rtl" className="font-quran text-end" style={{ fontSize: 'var(--ayah-size)' }}>
+                <p
+                  dir="rtl"
+                  className={cn('font-quran text-end transition-[filter] duration-300', hidden && 'pointer-events-none blur-lg select-none')}
+                  style={{ fontSize: 'var(--ayah-size)' }}
+                  aria-hidden={hidden || undefined}
+                >
                   {text} <AyahMark n={a.number} />
                   {marked && <Bookmark className="ms-1 inline size-4 fill-gold text-gold" aria-label={t('bookmark')} />}
                   {isPlaying && <Volume2 className="ms-1 inline size-4 text-primary" aria-label={t('nowPlaying')} />}
@@ -124,6 +163,21 @@ export function Reader({ surah, focusAyah, onSelectAyah }: Props) {
                   <p dir="ltr" className="mt-3 text-start text-[0.95rem] leading-relaxed text-muted-foreground">{a.en}</p>
                 )}
               </button>
+              {memorize && (
+                <div className="flex justify-end px-3 pb-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-11 gap-2 rounded-full px-4 text-muted-foreground"
+                    aria-pressed={!hidden}
+                    onClick={() => toggleReveal(a.number)}
+                  >
+                    {hidden ? <Eye className="size-4" aria-hidden /> : <EyeOff className="size-4" aria-hidden />}
+                    {hidden ? t('revealAyah') : t('hideAyah')}
+                  </Button>
+                </div>
+              )}
               {i < ayahs.length - 1 && <div className="mx-4 h-px bg-border/70" role="presentation" />}
             </li>
           );

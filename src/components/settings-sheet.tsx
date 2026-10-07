@@ -37,7 +37,7 @@ function Row({ id, label, children }: { id: string; label: string; children: Rea
 }
 
 export function SettingsSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
-  const { settings, update, t } = useSettings();
+  const { settings, update, memorize, setMemorize, t } = useSettings();
   const { theme, setTheme } = useTheme();
   const { pinned, others } = useOrderedReciters();
   const ar = settings.lang === 'ar';
@@ -105,6 +105,12 @@ export function SettingsSheet({ open, onOpenChange }: { open: boolean; onOpenCha
               <Row id="show-translation" label={t('showTranslation')}>
                 <Switch id="show-translation" checked={settings.showTranslation} onCheckedChange={v => update({ showTranslation: v })} />
               </Row>
+              <div className="space-y-1.5">
+                <Row id="memorize" label={t('memorize')}>
+                  <Switch id="memorize" checked={memorize} onCheckedChange={setMemorize} />
+                </Row>
+                <p className="text-xs text-muted-foreground">{t('memorizeHint')}</p>
+              </div>
               <div className="space-y-2">
                 <Label>{t('defaultTafsir')}</Label>
                 <Select value={String(settings.tafsirId)} onValueChange={v => update({ tafsirId: Number(v) })}>

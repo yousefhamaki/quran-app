@@ -37,6 +37,9 @@ interface SettingsContextValue {
   /** How many times each ayah plays before moving on: 1 = once (off), 0 = repeat forever. Local to this device. */
   repeatTimes: number;
   setRepeatTimes: (times: number) => void;
+  /** Memorize mode hides the Arabic text so the user can recite from memory. Local to this device. */
+  memorize: boolean;
+  setMemorize: (on: boolean) => void;
   t: (key: TKey, vars?: Record<string, string | number>) => string;
 }
 
@@ -58,6 +61,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     return Number.isInteger(v) && v >= 0 && v <= 50 ? v : 1;
   });
   const setRepeatTimes = useCallback((n: number) => { setRepeatState(n); saveJSON('quran.repeatTimes', n); }, []);
+  const [memorize, setMemorizeState] = useState<boolean>(() => loadJSON<boolean>('quran.memorize', false) === true);
+  const setMemorize = useCallback((on: boolean) => { setMemorizeState(on); saveJSON('quran.memorize', on); }, []);
   const togglePin = useCallback((id: string) => setPinned(p => (p.includes(id) ? p.filter(x => x !== id) : [...p, id])), []);
 
   useEffect(() => {
@@ -79,7 +84,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     [settings.lang],
   );
 
-  const value = useMemo(() => ({ settings, update, replace, pinned, togglePin, gapSeconds, setGapSeconds, repeatTimes, setRepeatTimes, t }), [settings, update, replace, pinned, togglePin, gapSeconds, setGapSeconds, repeatTimes, setRepeatTimes, t]);
+  const value = useMemo(() => ({ settings, update, replace, pinned, togglePin, gapSeconds, setGapSeconds, repeatTimes, setRepeatTimes, memorize, setMemorize, t }), [settings, update, replace, pinned, togglePin, gapSeconds, setGapSeconds, repeatTimes, setRepeatTimes, memorize, setMemorize, t]);
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
 }
 
