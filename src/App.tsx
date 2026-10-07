@@ -4,10 +4,14 @@ import { Home } from '@/components/home';
 import { Reader } from '@/components/reader';
 import { AyahSheet } from '@/components/ayah-sheet';
 import { TafsirSheet } from '@/components/tafsir-sheet';
+import { DownloadSheet } from '@/components/download-sheet';
 import { PlayerBar } from '@/components/player-bar';
 import { SettingsSheet } from '@/components/settings-sheet';
 import { AccountSheet } from '@/components/account-sheet';
 import { useHashRoute } from '@/hooks/use-hash-route';
+import { useOnline } from '@/hooks/use-online';
+import { useDownloads } from '@/context/downloads';
+import { WifiOff } from 'lucide-react';
 import { useSettings } from '@/context/settings';
 import { useAuth } from '@/context/auth';
 import { useLibrary } from '@/context/library';
@@ -20,10 +24,13 @@ export default function App() {
   const { markRead } = useLibrary();
   const { autoSurah, setSurahCounts } = usePlayer();
   const { route, go } = useHashRoute();
+  const online = useOnline();
+  const { records } = useDownloads();
   const [surahs, setSurahs] = useState<Surah[]>([]);
   const [status, setStatus] = useState<'loading' | 'ok' | 'error'>('loading');
   const [selectedAyah, setSelectedAyah] = useState<number | null>(null);
   const [tafsirAyah, setTafsirAyah] = useState<number | null>(null);
+  const [downloadOpen, setDownloadOpen] = useState(false);
   const [ayahs, setAyahs] = useState<Ayah[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -52,7 +59,7 @@ export default function App() {
   useEffect(() => { if (route.surah && route.ayah) markRead(route.surah, route.ayah); }, [route.surah, route.ayah, markRead]);
 
   // Any sheet that was open belongs to the previous surah.
-  useEffect(() => { setTafsirAyah(null); setSelectedAyah(null); }, [route.surah]);
+  useEffect(() => { setTafsirAyah(null); setSelectedAyah(null); setDownloadOpen(false); }, [route.surah]);
 
   const sheetAyah = selectedAyah ? ayahs.find(a => a.number === selectedAyah) ?? null : null;
 
@@ -67,9 +74,21 @@ export default function App() {
         signedIn={!!user}
       />
 
+      {!online && (
+        <div role="status" className="border-b bg-secondary px-4 py-2.5 text-secondary-foreground">
+          <p className="mx-auto flex max-w-3xl items-start gap-2 text-sm">
+            <WifiOff className="mt-0.5 size-4 shrink-0" aria-hidden />
+            <span>
+              {t('offlineBanner')}
+              {records.length > 0 && !surah && <span className="mt-0.5 block text-xs text-muted-foreground">{t('offlineTapHint')}</span>}
+            </span>
+          </p>
+        </div>
+      )}
+
       <main>
         {surah ? (
-          <Reader surah={surah} focusAyah={route.ayah} onSelectAyah={setSelectedAyah} onOpenTafsir={setTafsirAyah} />
+          <Reader surah={surah} focusAyah={route.ayah} onSelectAyah={setSelectedAyah} onOpenTafsir={setTafsirAyah} onOpenDownload={() => setDownloadOpen(true)} />
         ) : (
           <Home surahs={surahs} loading={status === 'loading'} error={status === 'error'} onRetry={loadSurahs} onOpen={(s, a) => go(s, a)} />
         )}
@@ -77,8 +96,9 @@ export default function App() {
 
       {surah && <AyahSheet surah={surah} ayah={sheetAyah} open={selectedAyah !== null} onOpenChange={o => !o && setSelectedAyah(null)} />}
       {surah && <TafsirSheet surah={surah} ayahs={ayahs} ayahNumber={tafsirAyah} onAyahChange={setTafsirAyah} onClose={() => setTafsirAyah(null)} />}
+      {surah && <DownloadSheet surah={surah} open={downloadOpen} onOpenChange={setDownloadOpen} />}
       <PlayerBar surahs={surahs} />
-      <SettingsSheet open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <SettingsSheet open={settingsOpen} onOpenChange={setSettingsOpen} surahs={surahs} />
       <AccountSheet open={accountOpen} onOpenChange={setAccountOpen} />
     </div>
   );

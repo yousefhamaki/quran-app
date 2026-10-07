@@ -2,6 +2,8 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import type { Surah } from '@/lib/quran';
 import { useSettings } from '@/context/settings';
+import { useDownloads } from '@/context/downloads';
+import { CircleCheck } from 'lucide-react';
 
 interface Props {
   surah: Surah;
@@ -23,6 +25,7 @@ function NumberStar({ n }: { n: number }) {
 
 export function SurahCard({ surah, index, onOpen }: Props) {
   const { settings, t } = useSettings();
+  const { hasAny } = useDownloads();
   const ar = settings.lang === 'ar';
   return (
     <Card
@@ -42,6 +45,7 @@ export function SurahCard({ surah, index, onOpen }: Props) {
           {ar ? surah.englishName : surah.englishNameTranslation} · {surah.numberOfAyahs} {t('ayahs')}
         </p>
       </div>
+      {hasAny(surah.number) && <CircleCheck className="size-5 shrink-0 text-primary" aria-label={t('offlineSaved')} />}
       <Badge variant="secondary" className="shrink-0 rounded-full font-normal">
         {surah.revelationType === 'Meccan' ? t('meccan') : t('medinan')}
       </Badge>

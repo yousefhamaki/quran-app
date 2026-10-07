@@ -1,4 +1,8 @@
+import { cachedFetch } from '@/lib/offline';
+
 const BASE = 'https://api.alquran.cloud/v1';
+
+export const surahTextUrl = (n: number) => `${BASE}/surah/${n}/editions/quran-uthmani,en.sahih`;
 
 export interface Surah {
   number: number;
@@ -41,14 +45,12 @@ export const audioUrl = (reciter: string, surah: number, ayah: number) =>
   `https://everyayah.com/data/${reciter}/${pad(surah, 3)}${pad(ayah, 3)}.mp3`;
 
 export async function fetchSurahs(): Promise<Surah[]> {
-  const r = await fetch(`${BASE}/surah`);
-  if (!r.ok) throw new Error('Failed to load surahs');
+  const r = await cachedFetch(`${BASE}/surah`);
   return (await r.json()).data;
 }
 
 export async function fetchSurah(n: number): Promise<Ayah[]> {
-  const r = await fetch(`${BASE}/surah/${n}/editions/quran-uthmani,en.sahih`);
-  if (!r.ok) throw new Error('Failed to load surah');
+  const r = await cachedFetch(surahTextUrl(n));
   const [ar, en] = (await r.json()).data;
   return ar.ayahs.map((a: { numberInSurah: number; text: string }, i: number) => ({
     number: a.numberInSurah,
@@ -85,8 +87,7 @@ export async function fetchTafsir(tafsirId: number, surah: number, ayah: number)
   const key = `${tafsirId}:${surah}:${ayah}`;
   const hit = tafsirCache.get(key);
   if (hit !== undefined) return hit;
-  const r = await fetch(`https://api.quran.com/api/v4/tafsirs/${tafsirId}/by_ayah/${surah}:${ayah}`);
-  if (!r.ok) throw new Error('Failed to load tafsir');
+  const r = await cachedFetch(`https://api.quran.com/api/v4/tafsirs/${tafsirId}/by_ayah/${surah}:${ayah}`);
   const text = htmlToText((await r.json()).tafsir.text);
   tafsirCache.set(key, text);
   return text;

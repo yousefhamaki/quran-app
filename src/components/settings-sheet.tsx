@@ -9,10 +9,11 @@ import { Separator } from '@/components/ui/separator';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { TAFSIRS } from '@/lib/quran';
+import { TAFSIRS, type Surah } from '@/lib/quran';
 import { useOrderedReciters } from '@/components/reciter-list';
 import { GapControl } from '@/components/gap-control';
 import { RepeatControl } from '@/components/repeat-control';
+import { DownloadsList } from '@/components/downloads-list';
 import { SleepControl, AutoNextSurahControl } from '@/components/sleep-control';
 import type { Lang } from '@/lib/i18n';
 import { useSettings } from '@/context/settings';
@@ -37,7 +38,7 @@ function Row({ id, label, children }: { id: string; label: string; children: Rea
   );
 }
 
-export function SettingsSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+export function SettingsSheet({ open, onOpenChange, surahs }: { open: boolean; onOpenChange: (o: boolean) => void; surahs: Surah[] }) {
   const { settings, update, memorize, setMemorize, t } = useSettings();
   const { theme, setTheme } = useTheme();
   const { pinned, others } = useOrderedReciters();
@@ -154,6 +155,11 @@ export function SettingsSheet({ open, onOpenChange }: { open: boolean; onOpenCha
               <Row id="continuous" label={t('continuous')}>
                 <Switch id="continuous" checked={settings.continuous} onCheckedChange={v => update({ continuous: v })} />
               </Row>
+            </Section>
+            <Separator />
+
+            <Section title={t('offlineSection')}>
+              <DownloadsList surahs={surahs} />
             </Section>
           </div>
         </ScrollArea>

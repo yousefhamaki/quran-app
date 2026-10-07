@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Bookmark, BookOpenText, Brain, Eye, EyeOff, MoreHorizontal, Play, Volume2 } from 'lucide-react';
+import { ArrowDownToLine, Bookmark, BookOpenText, Brain, CircleCheck, Eye, EyeOff, Loader2, MoreHorizontal, Play, Volume2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -7,12 +7,14 @@ import { fetchSurah, normalize, type Ayah, type Surah } from '@/lib/quran';
 import { useSettings } from '@/context/settings';
 import { useLibrary } from '@/context/library';
 import { usePlayer } from '@/context/player';
+import { useDownloads } from '@/context/downloads';
 
 interface Props {
   surah: Surah;
   focusAyah: number | null;
   onSelectAyah: (ayah: number) => void;
   onOpenTafsir: (ayah: number) => void;
+  onOpenDownload: () => void;
 }
 
 /** Ornamental ayah-end marker. */
@@ -24,10 +26,13 @@ function AyahMark({ n }: { n: number }) {
   );
 }
 
-export function Reader({ surah, focusAyah, onSelectAyah, onOpenTafsir }: Props) {
+export function Reader({ surah, focusAyah, onSelectAyah, onOpenTafsir, onOpenDownload }: Props) {
   const { settings, memorize, setMemorize, t } = useSettings();
   const { isBookmarked, markRead } = useLibrary();
   const { playing, setSurahLength, play, toggle } = usePlayer();
+  const { has, job } = useDownloads();
+  const saved = has(surah.number, settings.reciter);
+  const downloading = job?.surah === surah.number;
   const [ayahs, setAyahs] = useState<Ayah[]>([]);
   const [state, setState] = useState<'loading' | 'ok' | 'error'>('loading');
   const [attempt, setAttempt] = useState(0);
@@ -116,6 +121,16 @@ export function Reader({ surah, focusAyah, onSelectAyah, onOpenTafsir }: Props) 
           onClick={() => play(surah.number, 1)}
         >
           <Play className="size-4 fill-current rtl:-scale-x-100" aria-hidden /> {t('playSurah')}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-11 gap-2 rounded-full px-4"
+          onClick={onOpenDownload}
+        >
+          {downloading ? <Loader2 className="size-4 animate-spin" aria-hidden /> : saved ? <CircleCheck className="size-4 text-primary" aria-hidden /> : <ArrowDownToLine className="size-4" aria-hidden />}
+          {downloading && job ? `${Math.round((job.done / Math.max(1, job.total)) * 100)}%` : saved ? t('offlineSaved') : t('offlineButton')}
         </Button>
         <Button
           type="button"

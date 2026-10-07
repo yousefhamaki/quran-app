@@ -6,6 +6,7 @@ import { SettingsProvider } from '@/context/settings';
 import { LibraryProvider } from '@/context/library';
 import { PlayerProvider } from '@/context/player';
 import { AuthProvider } from '@/context/auth';
+import { DownloadsProvider } from '@/context/downloads';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/sonner';
 import './index.css';
@@ -16,12 +17,14 @@ createRoot(document.getElementById('root')!).render(
       <SettingsProvider>
         <LibraryProvider>
           <AuthProvider>
-            <PlayerProvider>
-              <TooltipProvider delayDuration={300}>
-                <App />
-                <Toaster position="top-center" />
-              </TooltipProvider>
-            </PlayerProvider>
+            <DownloadsProvider>
+              <PlayerProvider>
+                <TooltipProvider delayDuration={300}>
+                  <App />
+                  <Toaster position="top-center" />
+                </TooltipProvider>
+              </PlayerProvider>
+            </DownloadsProvider>
           </AuthProvider>
         </LibraryProvider>
       </SettingsProvider>

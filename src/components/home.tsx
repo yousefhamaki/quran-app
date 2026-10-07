@@ -8,6 +8,9 @@ import { Card } from '@/components/ui/card';
 import { SurahCard } from '@/components/surah-card';
 import { useSettings } from '@/context/settings';
 import { useLibrary } from '@/context/library';
+import { useDownloads } from '@/context/downloads';
+import { CircleCheck } from 'lucide-react';
+import { RECITERS } from '@/lib/quran';
 import { isArabic, normalize, searchQuran, type SearchResult, type Surah } from '@/lib/quran';
 
 interface Props {
@@ -41,6 +44,7 @@ function Highlight({ text, term, ar }: { text: string; term: string; ar: boolean
 export function Home({ surahs, loading, error, onRetry, onOpen }: Props) {
   const { settings, t } = useSettings();
   const { lastRead, bookmarks } = useLibrary();
+  const { records } = useDownloads();
   const [query, setQuery] = useState('');
   const [found, setFound] = useState<Found | null>(null);
   const ar = settings.lang === 'ar';
@@ -162,6 +166,36 @@ export function Home({ surahs, loading, error, onRetry, onOpen }: Props) {
         </section>
       ) : (
         <>
+          {records.length > 0 && !q && surahs.length > 0 && (
+            <section className="mt-6" aria-labelledby="offline-heading">
+              <h2 id="offline-heading" className="mb-2 flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <CircleCheck className="size-4 text-primary" aria-hidden /> {t('availableOffline')}
+              </h2>
+              <ul className="grid gap-2 sm:grid-cols-2">
+                {[...records].sort((a, b) => a.surah - b.surah).map(d => {
+                  const s = surahs.find(x => x.number === d.surah);
+                  const r = RECITERS.find(x => x.id === d.reciter);
+                  if (!s) return null;
+                  return (
+                    <li key={`${d.surah}:${d.reciter}`}>
+                      <button
+                        type="button"
+                        onClick={() => onOpen(d.surah)}
+                        className="flex min-h-14 w-full items-center gap-3 rounded-2xl border border-primary/30 bg-secondary px-4 py-2 text-start transition-colors hover:border-primary focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+                      >
+                        <span className="min-w-0 flex-1">
+                          <span className={`block truncate ${ar ? 'ar-safe font-quran text-lg' : 'font-display text-lg font-semibold'}`}>{ar ? s.name : s.englishName}</span>
+                          <span className="block truncate text-xs text-muted-foreground">{r ? (ar ? r.ar : r.en) : ''}</span>
+                        </span>
+                        <CircleCheck className="size-5 shrink-0 text-primary" aria-hidden />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
+
           {bookmarks.length > 0 && !q && surahs.length > 0 && (
             <section className="mt-6">
               <h2 className="mb-2 text-sm font-medium text-muted-foreground">{t('bookmarks')}</h2>

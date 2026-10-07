@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { audioUrl } from '@/lib/quran';
+import { isDownloaded, isOnline, offlineAudioUrl, resolveNextSurah } from '@/lib/offline';
 import { useSettings } from '@/context/settings';
 import { useLibrary } from '@/context/library';
 
@@ -63,6 +64,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [pass, setPass] = useState(1);
   const passRef = useRef(1);
   const surahLength = useRef(0);
+  const playToken = useRef(0); // guards against a slow offline lookup finishing after a newer play()
+  const blobUrl = useRef<string | null>(null);
 
   // Pause between ayahs ("your turn" to repeat). gapLeft counts down in seconds.
   const [gapLeft, setGapLeft] = useState<number | null>(null);
@@ -95,9 +98,23 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setLoading(true);
       setTime(0);
       setDuration(0);
-      el.src = audioUrl(reciter, surah, ayah);
-      el.playbackRate = live.current.speed;
-      el.play().catch(() => { setFailed(true); setLoading(false); setIsPlaying(false); });
+      const begin = (src: string) => {
+        const previous = blobUrl.current;
+        blobUrl.current = src.startsWith('blob:') ? src : null;
+        el.src = src;
+        if (previous) URL.revokeObjectURL(previous);
+        el.playbackRate = live.current.speed;
+        el.play().catch(() => { setFailed(true); setLoading(false); setIsPlaying(false); });
+      };
+      const network = audioUrl(reciter, surah, ayah);
+      const token = ++playToken.current;
+      if (isDownloaded(surah, reciter)) {
+        // Saved on this device: play from storage (falls back to the network if it was evicted).
+        void offlineAudioUrl(network).then(local => {
+          if (token !== playToken.current) { if (local) URL.revokeObjectURL(local); return; }
+          begin(local ?? network);
+        });
+      } else begin(network);
       setPlaying({ surah, ayah, reciter });
       markRead(surah, ayah);
     },
@@ -107,6 +124,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   playRef.current = play;
 
   const stop = useCallback(() => {
+    playToken.current += 1;
     if (audio.current) { audio.current.pause(); audio.current.volume = 1; }
     setSleepState(null);
     setSleepLeft(null);
@@ -175,16 +193,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       else if (p && p.ayah >= surahLength.current) {
         // Last ayah of the surah is done.
         if (sleepRef.current?.kind === 'surah') stopRef.current();
-        else if (continuous && autoNextRef.current && p.surah < 114) schedule('nextSurah');
+        else if (continuous && autoNextRef.current && resolveNextSurah(p.surah, p.reciter, isOnline()) !== null) schedule('nextSurah');
         else setIsPlaying(false);
       } else setIsPlaying(false);
     };
     const runAction = (kind: Action) => {
       if (kind === 'nextSurah') {
         const p = live.current.playing;
-        const nextSurah = p ? p.surah + 1 : 0;
+        // Re-check at the moment of switching: the connection may have changed during the pause.
+        const nextSurah = p ? resolveNextSurah(p.surah, p.reciter, isOnline()) ?? 0 : 0;
         const length = surahCounts.current[nextSurah - 1];
-        if (!p || !length) { setIsPlaying(false); return; }
+        if (!p || !nextSurah || !length) { setIsPlaying(false); return; }
         surahLength.current = length;
         playRef.current(nextSurah, 1, p.reciter);
         setAutoSurah(prev => ({ surah: nextSurah, n: (prev?.n ?? 0) + 1 }));
