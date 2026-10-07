@@ -11,12 +11,14 @@ import { useHashRoute } from '@/hooks/use-hash-route';
 import { useSettings } from '@/context/settings';
 import { useAuth } from '@/context/auth';
 import { useLibrary } from '@/context/library';
+import { usePlayer } from '@/context/player';
 import { fetchSurah, fetchSurahs, type Ayah, type Surah } from '@/lib/quran';
 
 export default function App() {
   const { settings, t } = useSettings();
   const { user } = useAuth();
   const { markRead } = useLibrary();
+  const { autoSurah, setSurahCounts } = usePlayer();
   const { route, go } = useHashRoute();
   const [surahs, setSurahs] = useState<Surah[]>([]);
   const [status, setStatus] = useState<'loading' | 'ok' | 'error'>('loading');
@@ -31,6 +33,10 @@ export default function App() {
     fetchSurahs().then(s => { setSurahs(s); setStatus('ok'); }).catch(() => setStatus('error'));
   }, []);
   useEffect(loadSurahs, [loadSurahs]);
+
+  useEffect(() => { if (surahs.length) setSurahCounts(surahs.map(s => s.numberOfAyahs)); }, [surahs, setSurahCounts]);
+  // When playback rolls over into the next surah on its own, show that surah.
+  useEffect(() => { if (autoSurah) go(autoSurah.surah); }, [autoSurah?.n]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const surah = route.surah ? surahs.find(s => s.number === route.surah) ?? null : null;
   const ar = settings.lang === 'ar';

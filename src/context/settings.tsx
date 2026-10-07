@@ -40,6 +40,9 @@ interface SettingsContextValue {
   /** Memorize mode hides the Arabic text so the user can recite from memory. Local to this device. */
   memorize: boolean;
   setMemorize: (on: boolean) => void;
+  /** When a surah finishes during continuous play, keep going with the next surah. Local to this device. */
+  autoNextSurah: boolean;
+  setAutoNextSurah: (on: boolean) => void;
   t: (key: TKey, vars?: Record<string, string | number>) => string;
 }
 
@@ -63,6 +66,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const setRepeatTimes = useCallback((n: number) => { setRepeatState(n); saveJSON('quran.repeatTimes', n); }, []);
   const [memorize, setMemorizeState] = useState<boolean>(() => loadJSON<boolean>('quran.memorize', false) === true);
   const setMemorize = useCallback((on: boolean) => { setMemorizeState(on); saveJSON('quran.memorize', on); }, []);
+  const [autoNextSurah, setAutoNextState] = useState<boolean>(() => loadJSON<boolean>('quran.autoNextSurah', false) === true);
+  const setAutoNextSurah = useCallback((on: boolean) => { setAutoNextState(on); saveJSON('quran.autoNextSurah', on); }, []);
   const togglePin = useCallback((id: string) => setPinned(p => (p.includes(id) ? p.filter(x => x !== id) : [...p, id])), []);
 
   useEffect(() => {
@@ -84,7 +89,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     [settings.lang],
   );
 
-  const value = useMemo(() => ({ settings, update, replace, pinned, togglePin, gapSeconds, setGapSeconds, repeatTimes, setRepeatTimes, memorize, setMemorize, t }), [settings, update, replace, pinned, togglePin, gapSeconds, setGapSeconds, repeatTimes, setRepeatTimes, memorize, setMemorize, t]);
+  const value = useMemo(() => ({ settings, update, replace, pinned, togglePin, gapSeconds, setGapSeconds, repeatTimes, setRepeatTimes, memorize, setMemorize, autoNextSurah, setAutoNextSurah, t }), [settings, update, replace, pinned, togglePin, gapSeconds, setGapSeconds, repeatTimes, setRepeatTimes, memorize, setMemorize, autoNextSurah, setAutoNextSurah, t]);
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
 }
 

@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 import { useOrderedReciters } from '@/components/reciter-list';
 import { GapControl } from '@/components/gap-control';
 import { RepeatControl } from '@/components/repeat-control';
+import { SleepControl, AutoNextSurahControl, formatCountdown } from '@/components/sleep-control';
 import { cn } from '@/lib/utils';
 import { RECITERS, type Surah } from '@/lib/quran';
 import { useSettings } from '@/context/settings';
@@ -36,7 +37,7 @@ function PlayPause({ className }: { className?: string }) {
 
 export function PlayerBar({ surahs }: { surahs: Surah[] }) {
   const { settings, update, repeatTimes, t } = useSettings();
-  const { playing, failed, time, duration, pass, gapLeft, gapTotal, gapPaused, stop, next, previous, seek, changeReciter } = usePlayer();
+  const { playing, failed, time, duration, pass, sleep, sleepLeft, gapLeft, gapTotal, gapPaused, stop, next, previous, seek, changeReciter } = usePlayer();
   const { pinned, others } = useOrderedReciters();
   const [open, setOpen] = useState(false);
   if (!playing) return null;
@@ -75,7 +76,7 @@ export function PlayerBar({ surahs }: { surahs: Surah[] }) {
                     ? t('error')
                     : inGap
                       ? `${t('yourTurn')} · ${gapPaused ? t('gapPausedLabel') : t('gapSeconds', { n: Math.ceil(gapLeft) })}`
-                      : `${reciter ? reciterName(reciter) : ''}${repeatTimes !== 1 ? ` · ${repeatTimes === 0 ? t('repeatPassForever', { i: pass }) : t('repeatPass', { i: pass, n: repeatTimes })}` : ''}`}
+                      : `${sleep ? `${sleep.kind === 'surah' ? t('sleepEndOfSurah') : t('sleepLeft', { time: formatCountdown(sleepLeft ?? 0) })} · ` : ''}${reciter ? reciterName(reciter) : ''}${repeatTimes !== 1 ? ` · ${repeatTimes === 0 ? t('repeatPassForever', { i: pass }) : t('repeatPass', { i: pass, n: repeatTimes })}` : ''}`}
                 </span>
               </span>
               <ChevronUp className="size-5 shrink-0 text-muted-foreground" aria-hidden />
@@ -161,6 +162,10 @@ export function PlayerBar({ surahs }: { surahs: Surah[] }) {
               </div>
 
               <RepeatControl />
+
+              <SleepControl />
+
+              <AutoNextSurahControl id="player-auto-next" />
 
               <GapControl idPrefix="player-gap" />
 

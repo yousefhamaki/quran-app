@@ -3,6 +3,9 @@ import { audioUrl } from '@/lib/quran';
 import { useSettings } from '@/context/settings';
 import { useLibrary } from '@/context/library';
 
+export type Sleep = { kind: 'time'; minutes: number; endsAt: number } | { kind: 'surah' };
+type Action = 'next' | 'repeat' | 'nextSurah';
+
 export interface Playing {
   surah: number;
   ayah: number;
@@ -24,6 +27,15 @@ interface PlayerContextValue {
   gapLeft: number | null;
   gapTotal: number;
   gapPaused: boolean;
+  /** Active sleep timer, if any. */
+  sleep: Sleep | null;
+  /** Seconds until a time-based sleep timer fires. */
+  sleepLeft: number | null;
+  setSleep: (option: { kind: 'time'; minutes: number } | { kind: 'surah' } | null) => void;
+  /** Bumps whenever playback rolls over into the next surah by itself, so the UI can follow. */
+  autoSurah: { surah: number; n: number } | null;
+  /** Ayah counts of all 114 surahs, needed to roll over to the next surah. */
+  setSurahCounts: (counts: number[]) => void;
   /** Number of ayahs in the surah being read, so "next" knows where to stop. */
   setSurahLength: (n: number) => void;
   play: (surah: number, ayah: number, reciter?: string) => void;
@@ -39,7 +51,7 @@ interface PlayerContextValue {
 const PlayerContext = createContext<PlayerContextValue | null>(null);
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
-  const { settings, gapSeconds, repeatTimes } = useSettings();
+  const { settings, gapSeconds, repeatTimes, autoNextSurah } = useSettings();
   const { markRead } = useLibrary();
   const audio = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState<Playing | null>(null);
@@ -56,7 +68,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [gapLeft, setGapLeft] = useState<number | null>(null);
   const [gapTotal, setGapTotal] = useState(0);
   const [gapPaused, setGapPaused] = useState(false);
-  const pendingAction = useRef<'next' | 'repeat'>('next');
+  const pendingAction = useRef<Action>('next');
+
+  // Sleep timer + rolling over into the next surah.
+  const [sleep, setSleepState] = useState<Sleep | null>(null);
+  const [sleepLeft, setSleepLeft] = useState<number | null>(null);
+  const sleepRef = useRef<Sleep | null>(null);
+  sleepRef.current = sleep;
+  const [autoSurah, setAutoSurah] = useState<{ surah: number; n: number } | null>(null);
+  const surahCounts = useRef<number[]>([]);
+  const autoNextRef = useRef(autoNextSurah);
+  autoNextRef.current = autoNextSurah;
 
   // The audio listeners are registered once, so they read the latest values from a ref.
   const live = useRef({ playing, continuous: settings.continuous, speed: settings.speed, repeatTimes, gap: gapSeconds });
@@ -85,7 +107,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   playRef.current = play;
 
   const stop = useCallback(() => {
-    audio.current?.pause();
+    if (audio.current) { audio.current.pause(); audio.current.volume = 1; }
+    setSleepState(null);
+    setSleepLeft(null);
     setGapLeft(null);
     setPlaying(null);
     setIsPlaying(false);
@@ -135,7 +159,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const el = new Audio();
     audio.current = el;
-    const schedule = (kind: 'next' | 'repeat') => {
+    const schedule = (kind: Action) => {
       const gap = live.current.gap;
       if (gap <= 0) { runAction(kind); return; }
       pendingAction.current = kind;
@@ -148,10 +172,23 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       // times: 1 = once, N = N plays in total, 0 = forever.
       if (times === 0 || passRef.current < times) schedule('repeat');
       else if (continuous && p && p.ayah < surahLength.current) schedule('next');
-      else setIsPlaying(false);
+      else if (p && p.ayah >= surahLength.current) {
+        // Last ayah of the surah is done.
+        if (sleepRef.current?.kind === 'surah') stopRef.current();
+        else if (continuous && autoNextRef.current && p.surah < 114) schedule('nextSurah');
+        else setIsPlaying(false);
+      } else setIsPlaying(false);
     };
-    const runAction = (kind: 'next' | 'repeat') => {
-      if (kind === 'repeat') {
+    const runAction = (kind: Action) => {
+      if (kind === 'nextSurah') {
+        const p = live.current.playing;
+        const nextSurah = p ? p.surah + 1 : 0;
+        const length = surahCounts.current[nextSurah - 1];
+        if (!p || !length) { setIsPlaying(false); return; }
+        surahLength.current = length;
+        playRef.current(nextSurah, 1, p.reciter);
+        setAutoSurah(prev => ({ surah: nextSurah, n: (prev?.n ?? 0) + 1 }));
+      } else if (kind === 'repeat') {
         passRef.current += 1;
         setPass(passRef.current);
         el.currentTime = 0;
@@ -178,7 +215,36 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const gapRef = useRef(false);
   gapRef.current = gapLeft !== null;
-  const runActionRef = useRef<(kind: 'next' | 'repeat') => void>(() => {});
+  const runActionRef = useRef<(kind: Action) => void>(() => {});
+  const stopRef = useRef(stop);
+  stopRef.current = stop;
+
+  const setSleep = useCallback((option: { kind: 'time'; minutes: number } | { kind: 'surah' } | null) => {
+    if (!option) { setSleepState(null); setSleepLeft(null); if (audio.current) audio.current.volume = 1; return; }
+    if (option.kind === 'time') {
+      setSleepState({ kind: 'time', minutes: option.minutes, endsAt: Date.now() + option.minutes * 60_000 });
+      setSleepLeft(option.minutes * 60);
+    } else {
+      setSleepState({ kind: 'surah' });
+      setSleepLeft(null);
+    }
+  }, []);
+
+  // Wall-clock based so background-tab throttling can't stretch the timer. Fades out over the last 5 s.
+  useEffect(() => {
+    if (sleep?.kind !== 'time') return;
+    const tick = () => {
+      const left = Math.ceil((sleep.endsAt - Date.now()) / 1000);
+      if (left <= 0) { stopRef.current(); return; }
+      setSleepLeft(left);
+      if (audio.current) audio.current.volume = left <= 5 ? Math.max(0.05, left / 5) : 1;
+    };
+    tick();
+    const id = setInterval(tick, 500);
+    return () => clearInterval(id);
+  }, [sleep]);
+
+  const setSurahCounts = useCallback((counts: number[]) => { surahCounts.current = counts; }, []);
 
   const gapActive = gapLeft !== null;
   useEffect(() => {
@@ -197,8 +263,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const setSurahLength = useCallback((n: number) => { surahLength.current = n; }, []);
 
   const value = useMemo(
-    () => ({ playing, isPlaying, loading, failed, time, duration, pass, gapLeft, gapTotal, gapPaused, setSurahLength, play, toggle, stop, next, previous, seek, changeReciter }),
-    [playing, isPlaying, loading, failed, time, duration, pass, gapLeft, gapTotal, gapPaused, setSurahLength, play, toggle, stop, next, previous, seek, changeReciter],
+    () => ({ playing, isPlaying, loading, failed, time, duration, pass, gapLeft, gapTotal, gapPaused, sleep, sleepLeft, setSleep, autoSurah, setSurahCounts, setSurahLength, play, toggle, stop, next, previous, seek, changeReciter }),
+    [playing, isPlaying, loading, failed, time, duration, pass, gapLeft, gapTotal, gapPaused, sleep, sleepLeft, setSleep, autoSurah, setSurahCounts, setSurahLength, play, toggle, stop, next, previous, seek, changeReciter],
   );
   return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;
 }
