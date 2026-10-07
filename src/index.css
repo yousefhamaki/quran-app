@@ -1,0 +1,151 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Design tokens — see design-system/quran-app/MASTER.md.
+ * Soft-UI + minimal. Emerald (primary) on warm ivory, gold reserved for ornament.
+ */
+:root {
+  --radius: 1rem;
+  /* Arabic line-height. Tall diacritics need clip-safe padding on truncated elements (.ar-safe). */
+  --leading-ar: 1.25;
+  --background: #faf7f0;
+  --foreground: #1c2a24;
+  --card: #ffffff;
+  --card-foreground: #1c2a24;
+  --popover: #ffffff;
+  --popover-foreground: #1c2a24;
+  --primary: #0b5d4b;
+  --primary-foreground: #ffffff;
+  --secondary: #e6f1ec;
+  --secondary-foreground: #0b4a3b;
+  --muted: #f1ede2;
+  --muted-foreground: #5b6b63;
+  --accent: #e6f1ec;
+  --accent-foreground: #0b4a3b;
+  --destructive: #c0392b;
+  --border: #e4ddcb;
+  --input: #d9d1bb;
+  --ring: #0b5d4b;
+  --gold: #b7892b;
+  --gold-foreground: #7a5a12;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #1c2a24;
+  --sidebar-primary: #0b5d4b;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e6f1ec;
+  --sidebar-accent-foreground: #0b4a3b;
+  --sidebar-border: #e4ddcb;
+  --sidebar-ring: #0b5d4b;
+  --shadow-soft: 0 1px 2px rgb(28 42 36 / 0.04), 0 8px 24px -8px rgb(28 42 36 / 0.10);
+}
+
+.dark {
+  --background: #0c1512;
+  --foreground: #eaf1ec;
+  --card: #121e19;
+  --card-foreground: #eaf1ec;
+  --popover: #121e19;
+  --popover-foreground: #eaf1ec;
+  --primary: #4fc596;
+  --primary-foreground: #06231a;
+  --secondary: #1a2822;
+  --secondary-foreground: #cfe6da;
+  --muted: #1a2822;
+  --muted-foreground: #9db0a6;
+  --accent: #1f3a2e;
+  --accent-foreground: #cfe6da;
+  --destructive: #ef6a5b;
+  --border: #24352d;
+  --input: #2d4238;
+  --ring: #4fc596;
+  --gold: #e0b65a;
+  --gold-foreground: #e9c978;
+  --sidebar: #121e19;
+  --sidebar-foreground: #eaf1ec;
+  --sidebar-primary: #4fc596;
+  --sidebar-primary-foreground: #06231a;
+  --sidebar-accent: #1f3a2e;
+  --sidebar-accent-foreground: #cfe6da;
+  --sidebar-border: #24352d;
+  --sidebar-ring: #4fc596;
+  --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px -8px rgb(0 0 0 / 0.5);
+}
+
+@theme inline {
+  --font-sans: "Inter", "Noto Sans Arabic", system-ui, sans-serif;
+  --font-display: "Cormorant Garamond", "Noto Naskh Arabic", Georgia, serif;
+  --font-quran: "Amiri Quran", "Noto Naskh Arabic", serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-gold: var(--gold);
+  --color-gold-foreground: var(--gold-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --radius-sm: calc(var(--radius) - 6px);
+  --radius-md: calc(var(--radius) - 4px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --shadow-soft: var(--shadow-soft);
+}
+
+@layer base {
+  * { @apply border-border outline-ring/50; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { @apply bg-background text-foreground font-sans antialiased; min-height: 100dvh; }
+  button, [role="button"], a, select, summary { cursor: pointer; }
+  :lang(ar) { line-height: var(--leading-ar); }
+}
+
+/* Subtle eight-point star lattice used behind hero surfaces. */
+.pattern-lattice {
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'%3E%3Cg fill='none' stroke='%23ffffff' stroke-opacity='0.13' stroke-width='1'%3E%3Cpath d='M28 4l6.5 15.5L50 26l-15.5 6.5L28 48l-6.5-15.5L6 26l15.5-6.5z'/%3E%3Ccircle cx='28' cy='26' r='4'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+.rise-in { animation: rise-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both; animation-delay: calc(var(--i, 0) * 30ms); }
+
+@keyframes ayah-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--primary) 35%, transparent); }
+  50% { box-shadow: 0 0 0 6px color-mix(in oklab, var(--primary) 0%, transparent); }
+}
+.ayah-playing { animation: ayah-pulse 2.4s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
+
+/* Quran / Arabic display text always uses the Arabic line-height token. */
+.font-quran { line-height: var(--leading-ar) !important; }
+
+/* For Arabic in truncated / overflow-hidden boxes: extra block padding keeps diacritics from being clipped
+   at the tight line-height, and the equal negative margin leaves the layout unchanged. */
+.ar-safe { padding-block: 0.4em; margin-block: -0.4em; }

@@ -1,3 +1,9 @@
 node_modules
 dist
 .claude
+.env
+.env.local
+backend/node_modules
+backend/dist
+backend/.env
+coverage

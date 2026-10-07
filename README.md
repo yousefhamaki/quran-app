@@ -1,46 +1,59 @@
 # Quran App | القرآن الكريم
 
-A bilingual (Arabic / English) Quran web app. Read any surah, tap an ayah, and choose which sheikh recites it.
+A premium, bilingual (Arabic / English) Quran web app. Read any surah, tap an ayah, and choose which sheikh recites it.
+
+- **Frontend:** React 19 + Vite + TypeScript + Tailwind v4 + **shadcn/ui** (design system in [`design-system/quran-app/MASTER.md`](design-system/quran-app/MASTER.md))
+- **Backend (optional sync):** Express + TypeScript following the Hamaki SOLID standard — see [`backend/`](backend/README.md)
 
 ## Features
 
 - All 114 surahs, Arabic (Uthmani) text with English Sahih International translation
-- Tap any ayah → pick from 10 reciters → that ayah plays in their voice
+- Tap any ayah → pick from 10 reciters → that ayah plays in their voice; continuous play, speed 0.75x–1.5x
 - Tafsir for any ayah: Al-Muyassar, As-Saadi, Ibn Kathir (Arabic) and Ibn Kathir (English)
-- Continuous play, playback speed (0.75x–1.5x)
-- Search surahs by name or number (diacritic-insensitive)
-- Full-text search across every ayah, in Arabic or English, with highlighted matches
-- "Continue reading" resumes from your last ayah
-- Adjustable Arabic text size and a show/hide translation toggle
-- Bookmarks, remembered reciter / language / speed
-- Arabic (RTL) and English (LTR) UI, light/dark mode
+- Surah-name filter and full-text search across every ayah (Arabic or English) with highlighted matches
+- "Continue reading", bookmarks, adjustable text size, show/hide translation
+- Light / dark / system theme, Arabic (RTL) and English (LTR) UI, deep links (`#/s/2/255`)
 - Installable PWA
+- Optional account: sync bookmarks, reading progress and settings across devices
 
 ## Free APIs (no key required)
 
 | Purpose | API |
 |---|---|
-| Quran text + translation | [AlQuran Cloud](https://alquran.cloud/api) |
+| Quran text + translation + search | [AlQuran Cloud](https://alquran.cloud/api) |
 | Tafsir | [Quran.com API v4](https://api.quran.com/api/v4) |
 | Per-ayah audio | [EveryAyah](https://everyayah.com) |
 
-Reciters are listed in [`src/api.js`](src/api.js); add more by appending an EveryAyah folder name.
+Reciters are listed in [`src/lib/quran.ts`](src/lib/quran.ts); add more by appending an EveryAyah folder name.
 
-## Run locally
+## Run the frontend
 
 ```bash
 npm install
-npm run dev
+npm run dev        # http://localhost:5173
 ```
 
-Then open http://localhost:5173.
-
-## Build
+The app works fully as a guest. To enable account sync, run the backend and set the API URL:
 
 ```bash
-npm run build     # outputs to dist/
-npm run preview   # serve the production build
+cp .env.example .env.local     # VITE_API_URL=http://localhost:4000/api
 ```
+
+## Run the backend
+
+See [`backend/README.md`](backend/README.md) (needs MongoDB; `docker-compose.yml` included).
+
+## Scripts
+
+```bash
+npm run typecheck   # tsc --noEmit
+npm run build       # typecheck + production build to dist/
+npm run preview     # serve the production build
+```
+
+## Deploy (Vercel)
+
+The frontend lives at the repo root. Set `VITE_API_URL` in the Vercel project's environment variables if you host the backend; otherwise leave it unset and the app runs guest-only.
 
 ## Share the dev server (Cloudflare Quick Tunnel)
 
@@ -48,8 +61,4 @@ npm run preview   # serve the production build
 cloudflared tunnel --url http://localhost:5173
 ```
 
-`*.trycloudflare.com` hosts are already allowed in [`vite.config.js`](vite.config.js).
-
-## Tech
-
-React 18 + Vite. No backend.
+`*.trycloudflare.com` hosts are already allowed in [`vite.config.ts`](vite.config.ts).
