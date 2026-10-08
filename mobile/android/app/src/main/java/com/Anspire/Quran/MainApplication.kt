@@ -1,4 +1,4 @@
-package com.hamaki.quran
+package com.Anspire.Quran
 
 import android.app.Application
 import android.content.res.Configuration

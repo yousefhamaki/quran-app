@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.hamaki.quran",
+      "bundleIdentifier": "com.Anspire.Quran",
       "infoPlist": {
         "UIBackgroundModes": [
           "audio"
@@ -24,7 +24,7 @@
       }
     },
     "android": {
-      "package": "com.hamaki.quran",
+      "package": "com.Anspire.Quran",
       "adaptiveIcon": {
         "backgroundColor": "#0b5d4b",
         "foregroundImage": "./assets/android-icon-foreground.png",

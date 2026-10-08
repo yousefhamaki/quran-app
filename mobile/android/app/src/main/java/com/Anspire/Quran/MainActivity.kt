@@ -1,4 +1,4 @@
-package com.hamaki.quran
+package com.Anspire.Quran
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

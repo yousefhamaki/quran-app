@@ -75,7 +75,7 @@ npx expo prebuild --platform ios           # creates the ios/ folder (Expo only 
 open ios/*.xcworkspace                     # Xcode: set your Team, then Product → Archive → Distribute App → Ad Hoc
 ```
 
-Export the `.ipa` and upload it to Diawi. The bundle id is `com.hamaki.quran` (change it in `app.json` → `ios.bundleIdentifier` / `android.package`).
+Export the `.ipa` and upload it to Diawi. The bundle id is `com.Anspire.Quran` (change it in `app.json` → `ios.bundleIdentifier` / `android.package`).
 
 ## Implementation notes
 
