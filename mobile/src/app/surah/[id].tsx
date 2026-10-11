@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { FlatList, Pressable, View } from 'react-native';
+import { FlatList, Pressable, View, useWindowDimensions } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowDownToLine, Bookmark, BookOpenText, Brain, CircleCheck, Eye, EyeOff, MoreHorizontal, Play, Volume2 } from 'lucide-react-native';
 import { AppHeader } from '@/components/app-header';
@@ -19,6 +19,30 @@ import { useUI } from '@/context/ui';
 
 /** Ornamental ayah-end marker. */
 const mark = (n: number) => `﴿${n.toLocaleString('ar-EG')}﴾`;
+
+/**
+ * Memorize mode: stands in for the Arabic text. The text is never rendered while hidden, so nothing can leak
+ * through (a colour trick can fail silently on some devices). The bars imitate blurred lines of text and roughly
+ * follow the real length, so you still sense how long the ayah is.
+ */
+function HiddenAyah({ text, size, label }: { text: string; size: number; label: string }) {
+  const { width } = useWindowDimensions();
+  const lineWidth = Math.max(120, width - 48);
+  const estimated = text.length * size * 0.42; // average Arabic glyph advance
+  const lines = Math.max(1, Math.ceil(estimated / lineWidth));
+  const lastShare = Math.min(1, Math.max(0.35, (estimated - (lines - 1) * lineWidth) / lineWidth));
+  return (
+    <View accessible accessibilityLabel={label} style={{ direction: 'rtl', alignItems: 'flex-start', gap: size * 0.4, paddingVertical: size * 0.3 }}>
+      {Array.from({ length: lines }).map((_, i) => (
+        <View
+          key={i}
+          className="rounded-full bg-muted-foreground/25"
+          style={{ height: size * 0.55, width: i === lines - 1 ? lineWidth * lastShare : lineWidth * (i % 2 ? 0.94 : 1) }}
+        />
+      ))}
+    </View>
+  );
+}
 
 export default function Reader() {
   const router = useRouter();
@@ -169,23 +193,22 @@ export default function Reader() {
                   accessibilityLabel={`${t('ayah')} ${a.number}`}
                   className={cn('rounded-2xl px-4 py-4 active:bg-accent/60', isPlaying && 'bg-accent')}
                 >
-                  <View className={cn('rounded-xl', hidden && 'bg-muted')}>
+                  {hidden ? (
+                    <HiddenAyah text={text} size={size} label={`${t('ayah')} ${a.number}`} />
+                  ) : (
                     <Text
                       className="font-quran"
-                      accessibilityElementsHidden={hidden}
-                      importantForAccessibility={hidden ? 'no-hide-descendants' : 'auto'}
                       style={{
                         fontSize: size,
                         lineHeight: size * 1.25,
                         paddingVertical: size * 0.35,
                         textAlign: 'right',
                         writingDirection: 'rtl',
-                        color: hidden ? 'transparent' : undefined,
                       }}
                     >
-                      {text} <Text className="font-quran text-gold-foreground" style={{ fontSize: size * 0.6, color: hidden ? 'transparent' : undefined }}>{mark(a.number)}</Text>
+                      {text} <Text className="font-quran text-gold-foreground" style={{ fontSize: size * 0.6 }}>{mark(a.number)}</Text>
                     </Text>
-                  </View>
+                  )}
                   {(marked || isPlaying) && (
                     <View className="mt-1 flex-row gap-2">
                       {marked && <Icon as={Bookmark} className="size-4 fill-gold text-gold" />}
