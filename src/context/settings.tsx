@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { dictionaries, type Lang, type TKey } from '@/lib/i18n';
-import { RECITERS, TAFSIRS } from '@/lib/quran';
+import { RECITERS, TAFSIRS, migrateReciterId, normalizeReciterId } from '@/lib/quran';
 import { loadJSON, saveJSON } from '@/lib/storage';
 
 export interface Settings {
@@ -50,9 +50,12 @@ const SettingsContext = createContext<SettingsContextValue | null>(null);
 const KEY = 'quran.settings';
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
-  const [settings, setSettings] = useState<Settings>(() => ({ ...DEFAULT_SETTINGS, ...loadJSON<Partial<Settings>>(KEY, {}) }));
+  const [settings, setSettings] = useState<Settings>(() => {
+    const stored = { ...DEFAULT_SETTINGS, ...loadJSON<Partial<Settings>>(KEY, {}) };
+    return { ...stored, reciter: normalizeReciterId(stored.reciter) };
+  });
 
-  const [pinned, setPinned] = useState<string[]>(() => loadJSON<string[]>('quran.pinnedReciters', []).filter(id => RECITERS.some(r => r.id === id)));
+  const [pinned, setPinned] = useState<string[]>(() => [...new Set(loadJSON<string[]>('quran.pinnedReciters', []).map(migrateReciterId))].filter(id => RECITERS.some(r => r.id === id)));
   useEffect(() => saveJSON('quran.pinnedReciters', pinned), [pinned]);
   const [gapSeconds, setGapState] = useState<number>(() => {
     const v = Number(loadJSON<number>('quran.gapSeconds', 0));

@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Uniwind } from 'uniwind';
 import { dictionaries, type Lang, type TKey } from '@/lib/i18n';
-import { RECITERS, TAFSIRS } from '@/lib/quran';
+import { RECITERS, TAFSIRS, migrateReciterId, normalizeReciterId } from '@/lib/quran';
 import { loadJSON, saveJSON } from '@/lib/storage';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
@@ -66,8 +66,11 @@ function useStored<T>(key: string, fallback: T, valid: (v: unknown) => boolean =
 }
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
-  const [settings, setSettings] = useState<Settings>(() => ({ ...DEFAULT_SETTINGS, ...loadJSON<Partial<Settings>>(KEY, {}) }));
-  const [pinned, setPinnedState] = useState<string[]>(() => loadJSON<string[]>('quran.pinnedReciters', []).filter(id => RECITERS.some(r => r.id === id)));
+  const [settings, setSettings] = useState<Settings>(() => {
+    const stored = { ...DEFAULT_SETTINGS, ...loadJSON<Partial<Settings>>(KEY, {}) };
+    return { ...stored, reciter: normalizeReciterId(stored.reciter) };
+  });
+  const [pinned, setPinnedState] = useState<string[]>(() => [...new Set(loadJSON<string[]>('quran.pinnedReciters', []).map(migrateReciterId))].filter(id => RECITERS.some(r => r.id === id)));
   const [gapSeconds, setGapSeconds] = useStored<number>('quran.gapSeconds', 0, v => typeof v === 'number' && v >= 0 && v <= 60);
   const [repeatTimes, setRepeatTimes] = useStored<number>('quran.repeatTimes', 1, v => Number.isInteger(v) && (v as number) >= 0 && (v as number) <= 50);
   const [memorize, setMemorize] = useStored<boolean>('quran.memorize', false, v => typeof v === 'boolean');

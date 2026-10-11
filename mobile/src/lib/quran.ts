@@ -33,11 +33,25 @@ export const RECITERS: Reciter[] = [
   { id: 'Minshawy_Murattal_128kbps', ar: 'محمد صديق المنشاوي', en: 'Al-Minshawi (Murattal)' },
   { id: 'Abdurrahmaan_As-Sudais_192kbps', ar: 'عبد الرحمن السديس', en: 'Abdurrahman As-Sudais' },
   { id: 'Saood_ash-Shuraym_128kbps', ar: 'سعود الشريم', en: 'Saud Ash-Shuraim' },
-  { id: 'Maher_AlMuaiqly_128kbps', ar: 'ماهر المعيقلي', en: 'Maher Al-Muaiqly' },
+  { id: 'MaherAlMuaiqly128kbps', ar: 'ماهر المعيقلي', en: 'Maher Al-Muaiqly' },
   { id: 'Abu_Bakr_Ash-Shaatree_128kbps', ar: 'أبو بكر الشاطري', en: 'Abu Bakr Ash-Shatri' },
   { id: 'Hudhaify_128kbps', ar: 'علي الحذيفي', en: 'Ali Al-Hudhaify' },
   { id: 'Muhammad_Ayyoub_128kbps', ar: 'محمد أيوب', en: 'Muhammad Ayyub' },
 ];
+
+// Folder names that were wrong in earlier versions, mapped to the correct EveryAyah folder.
+const LEGACY_RECITER_IDS: Record<string, string> = {
+  Maher_AlMuaiqly_128kbps: 'MaherAlMuaiqly128kbps',
+};
+
+/** Maps a reciter id saved by an earlier version to the current one (other ids are returned unchanged). */
+export const migrateReciterId = (id: string): string => LEGACY_RECITER_IDS[id] ?? id;
+
+/** Returns a valid reciter id: migrates old names, and falls back to the default reciter for unknown ids. */
+export function normalizeReciterId(id: string | undefined | null): string {
+  const mapped = id ? migrateReciterId(id) : '';
+  return RECITERS.some(r => r.id === mapped) ? mapped : RECITERS[0].id;
+}
 
 const pad = (n: number, l: number) => String(n).padStart(l, '0');
 
