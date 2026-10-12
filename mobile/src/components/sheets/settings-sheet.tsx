@@ -5,6 +5,7 @@ import { AutoNextSurahControl, ContinuousControl, GapControl, RepeatControl, Sle
 import { DownloadsList } from '@/components/downloads-list';
 import { useOrderedReciters } from '@/components/reciter-list';
 import { Field, Section } from '@/components/section';
+import { TajweedLegend } from '@/components/tajweed-legend';
 import { Sheet } from '@/components/sheet';
 import { Separator } from '@/components/ui/separator';
 import { Text } from '@/components/ui/text';
@@ -17,7 +18,7 @@ const SPEEDS = [0.75, 1, 1.25, 1.5];
 
 export function SettingsSheet() {
   const { settingsOpen, setSettingsOpen } = useUI();
-  const { settings, update, theme, setTheme, memorize, setMemorize, t, isRTL } = useSettings();
+  const { settings, update, theme, setTheme, memorize, setMemorize, tajweed, setTajweed, wordHighlight, setWordHighlight, t, isRTL } = useSettings();
   const { pinned, others } = useOrderedReciters();
 
   return (
@@ -64,6 +65,11 @@ export function SettingsSheet() {
         </Field>
         <SwitchRow label={t('showTranslation')} checked={settings.showTranslation} onChange={v => update({ showTranslation: v })} />
         <SwitchRow label={t('memorize')} hint={t('memorizeHint')} checked={memorize} onChange={setMemorize} />
+        <SwitchRow label={t('wordHighlight')} hint={t('wordHighlightHint')} checked={wordHighlight} onChange={setWordHighlight} />
+        <View className="gap-1">
+          <SwitchRow label={t('tajweedColours')} hint={t('tajweedHint')} checked={tajweed} onChange={setTajweed} />
+          <TajweedLegend />
+        </View>
         <Field label={t('defaultTafsir')}>
           <Chips
             label={t('defaultTafsir')}

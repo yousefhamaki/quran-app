@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowDownToLine, Bookmark, BookOpenText, Brain, CircleCheck, Eye, EyeOff, Loader2, MoreHorizontal, Play, Volume2 } from 'lucide-react';
+import { ArrowDownToLine, Bookmark, BookOpenText, Brain, CircleCheck, Eye, EyeOff, Loader2, MoreHorizontal, Play, Repeat, Volume2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -8,6 +8,8 @@ import { useSettings } from '@/context/settings';
 import { useLibrary } from '@/context/library';
 import { usePlayer } from '@/context/player';
 import { useDownloads } from '@/context/downloads';
+import { AyahWords } from '@/components/ayah-words';
+import { useSurahWords } from '@/hooks/use-surah-words';
 
 interface Props {
   surah: Surah;
@@ -15,6 +17,7 @@ interface Props {
   onSelectAyah: (ayah: number) => void;
   onOpenTafsir: (ayah: number) => void;
   onOpenDownload: () => void;
+  onOpenRange: () => void;
 }
 
 /** Ornamental ayah-end marker. */
@@ -26,10 +29,12 @@ function AyahMark({ n }: { n: number }) {
   );
 }
 
-export function Reader({ surah, focusAyah, onSelectAyah, onOpenTafsir, onOpenDownload }: Props) {
-  const { settings, memorize, setMemorize, t } = useSettings();
+export function Reader({ surah, focusAyah, onSelectAyah, onOpenTafsir, onOpenDownload, onOpenRange }: Props) {
+  const { settings, memorize, setMemorize, tajweed, wordHighlight, t } = useSettings();
   const { isBookmarked, markRead } = useLibrary();
-  const { playing, setSurahLength, play, toggle } = usePlayer();
+  const { playing, setSurahLength, play, toggle, range } = usePlayer();
+  // Word-level text (tajweed colours / word highlight); falls back to the plain text while loading or offline.
+  const surahWords = useSurahWords(surah.number, tajweed || wordHighlight, settings.reciter);
   const { has, job } = useDownloads();
   const saved = has(surah.number, settings.reciter);
   const downloading = job?.surah === surah.number;
@@ -134,6 +139,15 @@ export function Reader({ surah, focusAyah, onSelectAyah, onOpenTafsir, onOpenDow
         </Button>
         <Button
           type="button"
+          variant={range?.surah === surah.number ? 'default' : 'outline'}
+          size="sm"
+          className="h-11 gap-2 rounded-full px-4"
+          onClick={onOpenRange}
+        >
+          <Repeat className="size-4" aria-hidden /> {t('rangeLoop')}
+        </Button>
+        <Button
+          type="button"
           variant={memorize ? 'default' : 'outline'}
           size="sm"
           className="h-11 gap-2 rounded-full px-4"
@@ -185,7 +199,7 @@ export function Reader({ surah, focusAyah, onSelectAyah, onOpenTafsir, onOpenDow
                   style={{ fontSize: 'var(--ayah-size)' }}
                   aria-hidden={hidden || undefined}
                 >
-                  {text} <AyahMark n={a.number} />
+                  {surahWords?.[a.number - 1] ? <AyahWords words={surahWords[a.number - 1]} active={isPlaying} surah={surah.number} ayah={a.number} /> : text} <AyahMark n={a.number} />
                   {marked && <Bookmark className="ms-1 inline size-4 fill-gold text-gold" aria-label={t('bookmark')} />}
                   {isPlaying && <Volume2 className="ms-1 inline size-4 text-primary" aria-label={t('nowPlaying')} />}
                 </p>

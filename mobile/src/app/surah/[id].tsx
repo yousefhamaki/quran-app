@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, Pressable, View, useWindowDimensions } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowDownToLine, Bookmark, BookOpenText, Brain, CircleCheck, Eye, EyeOff, MoreHorizontal, Play, Volume2 } from 'lucide-react-native';
+import { ArrowDownToLine, Bookmark, BookOpenText, Brain, CircleCheck, Eye, EyeOff, MoreHorizontal, Play, Repeat, Volume2 } from 'lucide-react-native';
 import { AppHeader } from '@/components/app-header';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
@@ -10,6 +10,8 @@ import { Text } from '@/components/ui/text';
 import { cn } from '@/lib/utils';
 import { normalize, type Ayah } from '@/lib/quran';
 import { useAyahs } from '@/hooks/use-ayahs';
+import { useSurahWords } from '@/hooks/use-surah-words';
+import { AyahWords } from '@/components/ayah-words';
 import { useDownloads } from '@/context/downloads';
 import { useLibrary } from '@/context/library';
 import { usePlayer } from '@/context/player';
@@ -48,13 +50,15 @@ export default function Reader() {
   const router = useRouter();
   const { id, ayah: ayahParam } = useLocalSearchParams<{ id: string; ayah?: string }>();
   const surahNumber = Number(id);
-  const { settings, memorize, setMemorize, t, isRTL } = useSettings();
+  const { settings, memorize, setMemorize, tajweed, wordHighlight, t, isRTL } = useSettings();
   const { byNumber, status: surahsStatus } = useSurahs();
   const { isBookmarked, markRead } = useLibrary();
-  const { playing, play, toggle } = usePlayer();
+  const { playing, play, toggle, range } = usePlayer();
   const { has, job } = useDownloads();
-  const { setOptions, setTafsir, setDownload } = useUI();
+  const { setOptions, setTafsir, setDownload, setRangeFor } = useUI();
   const { status, ayahs, retry } = useAyahs(Number.isFinite(surahNumber) ? surahNumber : null);
+  // Word-level text (tajweed colours / word highlight); falls back to the plain text while loading or offline.
+  const surahWords = useSurahWords(surahNumber, tajweed || wordHighlight, settings.reciter);
   const surah = byNumber(surahNumber);
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/'));
   const list = useRef<FlatList<Ayah>>(null);
@@ -120,6 +124,10 @@ export default function Reader() {
           <Text className="text-sm">
             {downloading && job ? `${Math.round((job.done / Math.max(1, job.total)) * 100)}%` : saved ? t('offlineSaved') : t('offlineButton')}
           </Text>
+        </Button>
+        <Button variant={range?.surah === surahNumber ? 'default' : 'outline'} className="h-11 rounded-full px-4" onPress={() => setRangeFor(surahNumber, Number(ayahParam) || undefined)}>
+          <Icon as={Repeat} className={cn('size-4', range?.surah === surahNumber && 'text-primary-foreground')} />
+          <Text className="text-sm">{t('rangeLoop')}</Text>
         </Button>
         <Button variant={memorize ? 'default' : 'outline'} className="h-11 rounded-full px-4" onPress={() => setMemorize(!memorize)} aria-pressed={memorize}>
           <Icon as={Brain} className={cn('size-4', memorize && 'text-primary-foreground')} />
@@ -206,7 +214,8 @@ export default function Reader() {
                         writingDirection: 'rtl',
                       }}
                     >
-                      {text} <Text className="font-quran text-gold-foreground" style={{ fontSize: size * 0.6 }}>{mark(a.number)}</Text>
+                      {surahWords?.[a.number - 1] ? <AyahWords words={surahWords[a.number - 1]} active={isPlaying} surah={surahNumber} ayah={a.number} /> : text}{' '}
+                      <Text className="font-quran text-gold-foreground" style={{ fontSize: size * 0.6 }}>{mark(a.number)}</Text>
                     </Text>
                   )}
                   {(marked || isPlaying) && (

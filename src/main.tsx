@@ -7,6 +7,7 @@ import { LibraryProvider } from '@/context/library';
 import { PlayerProvider } from '@/context/player';
 import { AuthProvider } from '@/context/auth';
 import { DownloadsProvider } from '@/context/downloads';
+import { HifzProvider } from '@/context/hifz';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/sonner';
 import './index.css';
@@ -19,10 +20,12 @@ createRoot(document.getElementById('root')!).render(
           <AuthProvider>
             <DownloadsProvider>
               <PlayerProvider>
-                <TooltipProvider delayDuration={300}>
-                  <App />
-                  <Toaster position="top-center" />
-                </TooltipProvider>
+                <HifzProvider>
+                  <TooltipProvider delayDuration={300}>
+                    <App />
+                    <Toaster position="top-center" />
+                  </TooltipProvider>
+                </HifzProvider>
               </PlayerProvider>
             </DownloadsProvider>
           </AuthProvider>

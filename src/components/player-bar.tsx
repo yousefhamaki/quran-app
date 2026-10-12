@@ -37,7 +37,7 @@ function PlayPause({ className }: { className?: string }) {
 
 export function PlayerBar({ surahs }: { surahs: Surah[] }) {
   const { settings, update, repeatTimes, t } = useSettings();
-  const { playing, failed, time, duration, pass, sleep, sleepLeft, gapLeft, gapTotal, gapPaused, stop, next, previous, seek, changeReciter } = usePlayer();
+  const { playing, failed, time, duration, pass, range, round, clearRange, sleep, sleepLeft, gapLeft, gapTotal, gapPaused, stop, next, previous, seek, changeReciter } = usePlayer();
   const { pinned, others } = useOrderedReciters();
   const [open, setOpen] = useState(false);
   if (!playing) return null;
@@ -76,7 +76,7 @@ export function PlayerBar({ surahs }: { surahs: Surah[] }) {
                     ? t('error')
                     : inGap
                       ? `${t('yourTurn')} · ${gapPaused ? t('gapPausedLabel') : t('gapSeconds', { n: Math.ceil(gapLeft) })}`
-                      : `${sleep ? `${sleep.kind === 'surah' ? t('sleepEndOfSurah') : t('sleepLeft', { time: formatCountdown(sleepLeft ?? 0) })} · ` : ''}${reciter ? reciterName(reciter) : ''}${repeatTimes !== 1 ? ` · ${repeatTimes === 0 ? t('repeatPassForever', { i: pass }) : t('repeatPass', { i: pass, n: repeatTimes })}` : ''}`}
+                      : `${range ? `${t('rangeInfo', { from: range.from, to: range.to })} · ${range.rounds === 0 ? t('rangeRoundForever', { i: round }) : t('rangeRound', { i: round, n: range.rounds })} · ` : ''}${sleep ? `${sleep.kind === 'surah' ? t('sleepEndOfSurah') : t('sleepLeft', { time: formatCountdown(sleepLeft ?? 0) })} · ` : ''}${reciter ? reciterName(reciter) : ''}${repeatTimes !== 1 ? ` · ${repeatTimes === 0 ? t('repeatPassForever', { i: pass }) : t('repeatPass', { i: pass, n: repeatTimes })}` : ''}`}
                 </span>
               </span>
               <ChevronUp className="size-5 shrink-0 text-muted-foreground" aria-hidden />
@@ -161,6 +161,11 @@ export function PlayerBar({ surahs }: { surahs: Surah[] }) {
                 </ToggleGroup>
               </div>
 
+              {range && (
+                <Button variant="outline" className="h-11 w-full gap-2 rounded-xl" onClick={clearRange}>
+                  {t('rangeStop')} · {t('rangeInfo', { from: range.from, to: range.to })}
+                </Button>
+              )}
               <RepeatControl />
 
               <SleepControl />

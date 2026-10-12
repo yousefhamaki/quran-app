@@ -9,6 +9,8 @@ import { SurahCard } from '@/components/surah-card';
 import { useSettings } from '@/context/settings';
 import { useLibrary } from '@/context/library';
 import { useDownloads } from '@/context/downloads';
+import { useHifz } from '@/context/hifz';
+import { GraduationCap } from 'lucide-react';
 import { CircleCheck } from 'lucide-react';
 import { RECITERS } from '@/lib/quran';
 import { isArabic, normalize, searchQuran, type SearchResult, type Surah } from '@/lib/quran';
@@ -19,6 +21,7 @@ interface Props {
   error: boolean;
   onRetry: () => void;
   onOpen: (surah: number, ayah?: number) => void;
+  onOpenPlan: () => void;
 }
 
 type Found = { state: 'loading' } | { state: 'error' } | { state: 'ok'; term: string; ar: boolean; data: SearchResult };
@@ -41,10 +44,11 @@ function Highlight({ text, term, ar }: { text: string; term: string; ar: boolean
   );
 }
 
-export function Home({ surahs, loading, error, onRetry, onOpen }: Props) {
+export function Home({ surahs, loading, error, onRetry, onOpen, onOpenPlan }: Props) {
   const { settings, t } = useSettings();
   const { lastRead, bookmarks } = useLibrary();
   const { records } = useDownloads();
+  const { plan, learn, due } = useHifz();
   const [query, setQuery] = useState('');
   const [found, setFound] = useState<Found | null>(null);
   const ar = settings.lang === 'ar';
@@ -100,6 +104,32 @@ export function Home({ surahs, loading, error, onRetry, onOpen }: Props) {
           </span>
         </span>
         <ArrowRight className="size-5 shrink-0 transition-transform group-hover:translate-x-0.5 rtl:rotate-180 rtl:group-hover:-translate-x-0.5" aria-hidden />
+      </button>
+
+      {/* Memorization plan */}
+      <button
+        type="button"
+        onClick={onOpenPlan}
+        className="mt-3 flex w-full items-center gap-4 rounded-2xl border bg-card p-4 text-start transition-colors hover:border-primary/50 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+      >
+        <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-secondary text-primary" aria-hidden>
+          <GraduationCap className="size-6" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-medium">{plan ? `${t('planTitle')} · ${surahName(plan.surah)}` : t('planCardEmpty')}</span>
+          <span className="block truncate text-sm text-muted-foreground">
+            {!plan
+              ? t('planCardEmptyHint')
+              : !learn && due.length === 0
+                ? t('planAllDone')
+                : t('planCardToday', { learn: learn ? learn.to - learn.from + 1 : 0, due: due.length })}
+          </span>
+        </span>
+        {plan && due.length + (learn ? 1 : 0) > 0 && (
+          <span className="grid size-7 shrink-0 place-items-center rounded-full bg-primary text-xs font-semibold text-primary-foreground" aria-hidden>
+            {due.length + (learn ? 1 : 0)}
+          </span>
+        )}
       </button>
 
       {/* Search */}

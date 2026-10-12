@@ -1,4 +1,6 @@
 import { cachedJson } from '@/lib/offline';
+import { parseTajweed, type Word } from '@/lib/tajweed';
+import { QURAN_COM_RECITATION, normalizeSegments, type WordSegment } from '@/lib/wordtiming';
 
 const BASE = 'https://api.alquran.cloud/v1';
 
@@ -31,6 +33,7 @@ export const RECITERS: Reciter[] = [
   { id: 'Abdul_Basit_Murattal_192kbps', ar: 'عبد الباسط عبد الصمد', en: 'Abdul Basit (Murattal)' },
   { id: 'Husary_128kbps', ar: 'محمود خليل الحصري', en: 'Mahmoud Al-Husary' },
   { id: 'Minshawy_Murattal_128kbps', ar: 'محمد صديق المنشاوي', en: 'Al-Minshawi (Murattal)' },
+  { id: 'Mohammad_al_Tablaway_128kbps', ar: 'محمد محمود الطبلاوي', en: 'Mohamed Al-Tablawi' },
   { id: 'Abdurrahmaan_As-Sudais_192kbps', ar: 'عبد الرحمن السديس', en: 'Abdurrahman As-Sudais' },
   { id: 'Saood_ash-Shuraym_128kbps', ar: 'سعود الشريم', en: 'Saud Ash-Shuraim' },
   { id: 'MaherAlMuaiqly128kbps', ar: 'ماهر المعيقلي', en: 'Maher Al-Muaiqly' },
@@ -146,4 +149,39 @@ export async function searchQuran(query: string): Promise<SearchResult> {
       text: m.text.replace(/^﻿/, ''),
     })),
   };
+}
+
+// ---------- words: tajweed colours and word-by-word timing (Quran.com) ----------
+
+const wordsMemory = new Map<number, Word[][]>();
+
+/** Every ayah of a surah split into words, with tajweed rules attached to the letters (index 0 = ayah 1). */
+export async function fetchSurahWords(surah: number): Promise<Word[][]> {
+  const hit = wordsMemory.get(surah);
+  if (hit) return hit;
+  const { verses } = await cachedJson<{ verses: { verse_key: string; text_uthmani_tajweed: string }[] }>(
+    `https://api.quran.com/api/v4/quran/verses/uthmani_tajweed?chapter_number=${surah}`,
+  );
+  const words: Word[][] = [];
+  for (const v of verses) words[Number(v.verse_key.split(':')[1]) - 1] = parseTajweed(v.text_uthmani_tajweed);
+  wordsMemory.set(surah, words);
+  return words;
+}
+
+const segmentsMemory = new Map<string, Map<number, WordSegment[]>>();
+
+/** Exact word timestamps (ms) per ayah, or null when Quran.com has none for this reciter (the caller estimates). */
+export async function fetchWordSegments(reciter: string, surah: number): Promise<Map<number, WordSegment[]> | null> {
+  const id = QURAN_COM_RECITATION[reciter];
+  if (!id) return null;
+  const key = `${id}:${surah}`;
+  const hit = segmentsMemory.get(key);
+  if (hit) return hit;
+  const { audio_files } = await cachedJson<{ audio_files: { verse_key: string; segments: unknown }[] }>(
+    `https://api.quran.com/api/v4/recitations/${id}/by_chapter/${surah}?fields=segments&per_page=300`,
+  );
+  const map = new Map<number, WordSegment[]>();
+  for (const f of audio_files) map.set(Number(f.verse_key.split(':')[1]), normalizeSegments(f.segments));
+  segmentsMemory.set(key, map);
+  return map;
 }

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { FlatList, Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ArrowRight, BookOpen, CircleCheck, Search, X } from 'lucide-react-native';
+import { ArrowRight, BookOpen, CircleCheck, GraduationCap, Search, X } from 'lucide-react-native';
 import { AppHeader } from '@/components/app-header';
 import { SurahCard } from '@/components/surah-card';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import { Text } from '@/components/ui/text';
 import { RECITERS, isArabic, normalize, searchQuran, type SearchResult, type Surah } from '@/lib/quran';
 import { cn } from '@/lib/utils';
 import { useDownloads } from '@/context/downloads';
+import { useHifz } from '@/context/hifz';
 import { useLibrary } from '@/context/library';
 import { useSettings } from '@/context/settings';
 import { useSurahs } from '@/context/surahs';
@@ -46,6 +47,7 @@ export default function Home() {
   const { surahs, status, reload, byNumber } = useSurahs();
   const { lastRead, bookmarks } = useLibrary();
   const { records } = useDownloads();
+  const { plan, learn, due } = useHifz();
   const online = useOnline();
   const [query, setQuery] = useState('');
   const [found, setFound] = useState<Found | null>(null);
@@ -111,6 +113,28 @@ export default function Home() {
           {records.length > 0 && <Text className="mt-1 text-xs text-muted-foreground">{t('offlineTapHint')}</Text>}
         </View>
       )}
+
+      {/* Memorization plan */}
+      <Pressable
+        onPress={() => router.push('/plan')}
+        accessibilityRole="button"
+        className="flex-row items-center gap-4 rounded-2xl border border-border bg-card p-4 active:border-primary"
+      >
+        <View className="size-11 items-center justify-center rounded-xl bg-secondary">
+          <Icon as={GraduationCap} className="size-6 text-primary" />
+        </View>
+        <View className="flex-1">
+          <Text numberOfLines={1} className="font-medium">{plan ? `${t('planTitle')} · ${surahName(plan.surah)}` : t('planCardEmpty')}</Text>
+          <Text numberOfLines={1} className="text-sm text-muted-foreground">
+            {!plan ? t('planCardEmptyHint') : !learn && due.length === 0 ? t('planAllDone') : t('planCardToday', { learn: learn ? learn.to - learn.from + 1 : 0, due: due.length })}
+          </Text>
+        </View>
+        {plan && due.length + (learn ? 1 : 0) > 0 ? (
+          <View className="size-7 items-center justify-center rounded-full bg-primary">
+            <Text className="text-xs font-semibold text-primary-foreground">{due.length + (learn ? 1 : 0)}</Text>
+          </View>
+        ) : null}
+      </Pressable>
 
       {/* Search */}
       <View className="flex-row items-center gap-2" accessibilityRole="search">

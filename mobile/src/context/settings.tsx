@@ -47,6 +47,12 @@ interface SettingsContextValue {
   /** Keep going into the next surah when one finishes. */
   autoNextSurah: boolean;
   setAutoNextSurah: (on: boolean) => void;
+  /** Colour the letters by tajweed rule. */
+  tajweed: boolean;
+  setTajweed: (on: boolean) => void;
+  /** Highlight the word being recited while audio plays. */
+  wordHighlight: boolean;
+  setWordHighlight: (on: boolean) => void;
   theme: ThemeMode;
   setTheme: (mode: ThemeMode) => void;
   t: (key: TKey, vars?: Record<string, string | number>) => string;
@@ -75,6 +81,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [repeatTimes, setRepeatTimes] = useStored<number>('quran.repeatTimes', 1, v => Number.isInteger(v) && (v as number) >= 0 && (v as number) <= 50);
   const [memorize, setMemorize] = useStored<boolean>('quran.memorize', false, v => typeof v === 'boolean');
   const [autoNextSurah, setAutoNextSurah] = useStored<boolean>('quran.autoNextSurah', false, v => typeof v === 'boolean');
+  const [tajweed, setTajweed] = useStored<boolean>('quran.tajweed', false, v => typeof v === 'boolean');
+  const [wordHighlight, setWordHighlight] = useStored<boolean>('quran.wordHighlight', true, v => typeof v === 'boolean');
   const [theme, setThemeState] = useStored<ThemeMode>('quran.theme', 'system', v => v === 'light' || v === 'dark' || v === 'system');
 
   useEffect(() => saveJSON(KEY, settings), [settings]);
@@ -103,9 +111,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       settings, isRTL: settings.lang === 'ar', update, replace, pinned, togglePin, gapSeconds, setGapSeconds, repeatTimes, setRepeatTimes,
-      memorize, setMemorize, autoNextSurah, setAutoNextSurah, theme, setTheme: setThemeState, t,
+      memorize, setMemorize, autoNextSurah, setAutoNextSurah, tajweed, setTajweed, wordHighlight, setWordHighlight, theme, setTheme: setThemeState, t,
     }),
-    [settings, update, replace, pinned, togglePin, gapSeconds, setGapSeconds, repeatTimes, setRepeatTimes, memorize, setMemorize, autoNextSurah, setAutoNextSurah, theme, setThemeState, t],
+    [settings, update, replace, pinned, togglePin, gapSeconds, setGapSeconds, repeatTimes, setRepeatTimes, memorize, setMemorize, autoNextSurah, setAutoNextSurah, tajweed, setTajweed, wordHighlight, setWordHighlight, theme, setThemeState, t],
   );
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
 }

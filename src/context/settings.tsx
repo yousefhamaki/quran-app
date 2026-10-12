@@ -43,6 +43,12 @@ interface SettingsContextValue {
   /** When a surah finishes during continuous play, keep going with the next surah. Local to this device. */
   autoNextSurah: boolean;
   setAutoNextSurah: (on: boolean) => void;
+  /** Colour the letters by tajweed rule. Local to this device. */
+  tajweed: boolean;
+  setTajweed: (on: boolean) => void;
+  /** Highlight the word being recited while audio plays. Local to this device. */
+  wordHighlight: boolean;
+  setWordHighlight: (on: boolean) => void;
   t: (key: TKey, vars?: Record<string, string | number>) => string;
 }
 
@@ -71,6 +77,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const setMemorize = useCallback((on: boolean) => { setMemorizeState(on); saveJSON('quran.memorize', on); }, []);
   const [autoNextSurah, setAutoNextState] = useState<boolean>(() => loadJSON<boolean>('quran.autoNextSurah', false) === true);
   const setAutoNextSurah = useCallback((on: boolean) => { setAutoNextState(on); saveJSON('quran.autoNextSurah', on); }, []);
+  const [tajweed, setTajweedState] = useState<boolean>(() => loadJSON<boolean>('quran.tajweed', false) === true);
+  const setTajweed = useCallback((on: boolean) => { setTajweedState(on); saveJSON('quran.tajweed', on); }, []);
+  const [wordHighlight, setWordHighlightState] = useState<boolean>(() => loadJSON<boolean>('quran.wordHighlight', true) !== false);
+  const setWordHighlight = useCallback((on: boolean) => { setWordHighlightState(on); saveJSON('quran.wordHighlight', on); }, []);
   const togglePin = useCallback((id: string) => setPinned(p => (p.includes(id) ? p.filter(x => x !== id) : [...p, id])), []);
 
   useEffect(() => {
@@ -92,7 +102,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     [settings.lang],
   );
 
-  const value = useMemo(() => ({ settings, update, replace, pinned, togglePin, gapSeconds, setGapSeconds, repeatTimes, setRepeatTimes, memorize, setMemorize, autoNextSurah, setAutoNextSurah, t }), [settings, update, replace, pinned, togglePin, gapSeconds, setGapSeconds, repeatTimes, setRepeatTimes, memorize, setMemorize, autoNextSurah, setAutoNextSurah, t]);
+  const value = useMemo(() => ({ settings, update, replace, pinned, togglePin, gapSeconds, setGapSeconds, repeatTimes, setRepeatTimes, memorize, setMemorize, autoNextSurah, setAutoNextSurah, tajweed, setTajweed, wordHighlight, setWordHighlight, t }), [settings, update, replace, pinned, togglePin, gapSeconds, setGapSeconds, repeatTimes, setRepeatTimes, memorize, setMemorize, autoNextSurah, setAutoNextSurah, tajweed, setTajweed, wordHighlight, setWordHighlight, t]);
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
 }
 

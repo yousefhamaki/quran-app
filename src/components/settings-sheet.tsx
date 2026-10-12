@@ -13,6 +13,7 @@ import { TAFSIRS, type Surah } from '@/lib/quran';
 import { useOrderedReciters } from '@/components/reciter-list';
 import { GapControl } from '@/components/gap-control';
 import { RepeatControl } from '@/components/repeat-control';
+import { TajweedLegend } from '@/components/tajweed-legend';
 import { DownloadsList } from '@/components/downloads-list';
 import { SleepControl, AutoNextSurahControl } from '@/components/sleep-control';
 import type { Lang } from '@/lib/i18n';
@@ -39,7 +40,7 @@ function Row({ id, label, children }: { id: string; label: string; children: Rea
 }
 
 export function SettingsSheet({ open, onOpenChange, surahs }: { open: boolean; onOpenChange: (o: boolean) => void; surahs: Surah[] }) {
-  const { settings, update, memorize, setMemorize, t } = useSettings();
+  const { settings, update, memorize, setMemorize, tajweed, setTajweed, wordHighlight, setWordHighlight, t } = useSettings();
   const { theme, setTheme } = useTheme();
   const { pinned, others } = useOrderedReciters();
   const ar = settings.lang === 'ar';
@@ -112,6 +113,19 @@ export function SettingsSheet({ open, onOpenChange, surahs }: { open: boolean; o
                   <Switch id="memorize" checked={memorize} onCheckedChange={setMemorize} />
                 </Row>
                 <p className="text-xs text-muted-foreground">{t('memorizeHint')}</p>
+              </div>
+              <div className="space-y-1.5">
+                <Row id="word-highlight" label={t('wordHighlight')}>
+                  <Switch id="word-highlight" checked={wordHighlight} onCheckedChange={setWordHighlight} />
+                </Row>
+                <p className="text-xs text-muted-foreground">{t('wordHighlightHint')}</p>
+              </div>
+              <div className="space-y-1.5">
+                <Row id="tajweed" label={t('tajweedColours')}>
+                  <Switch id="tajweed" checked={tajweed} onCheckedChange={setTajweed} />
+                </Row>
+                <p className="text-xs text-muted-foreground">{t('tajweedHint')}</p>
+                <TajweedLegend />
               </div>
               <div className="space-y-2">
                 <Label>{t('defaultTafsir')}</Label>

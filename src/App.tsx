@@ -7,6 +7,8 @@ import { TafsirSheet } from '@/components/tafsir-sheet';
 import { DownloadSheet } from '@/components/download-sheet';
 import { PlayerBar } from '@/components/player-bar';
 import { SettingsSheet } from '@/components/settings-sheet';
+import { PlanPage } from '@/components/plan-page';
+import { RangeSheet } from '@/components/range-sheet';
 import { AccountSheet } from '@/components/account-sheet';
 import { useHashRoute } from '@/hooks/use-hash-route';
 import { useOnline } from '@/hooks/use-online';
@@ -22,8 +24,8 @@ export default function App() {
   const { settings, t } = useSettings();
   const { user } = useAuth();
   const { markRead } = useLibrary();
-  const { autoSurah, setSurahCounts } = usePlayer();
-  const { route, go } = useHashRoute();
+  const { autoSurah, setSurahCounts, startRange } = usePlayer();
+  const { route, go, goPlan } = useHashRoute();
   const online = useOnline();
   const { records } = useDownloads();
   const [surahs, setSurahs] = useState<Surah[]>([]);
@@ -31,6 +33,7 @@ export default function App() {
   const [selectedAyah, setSelectedAyah] = useState<number | null>(null);
   const [tafsirAyah, setTafsirAyah] = useState<number | null>(null);
   const [downloadOpen, setDownloadOpen] = useState(false);
+  const [rangeOpen, setRangeOpen] = useState(false);
   const [ayahs, setAyahs] = useState<Ayah[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -59,16 +62,22 @@ export default function App() {
   useEffect(() => { if (route.surah && route.ayah) markRead(route.surah, route.ayah); }, [route.surah, route.ayah, markRead]);
 
   // Any sheet that was open belongs to the previous surah.
-  useEffect(() => { setTafsirAyah(null); setSelectedAyah(null); setDownloadOpen(false); }, [route.surah]);
+  useEffect(() => { setTafsirAyah(null); setSelectedAyah(null); setDownloadOpen(false); setRangeOpen(false); }, [route.surah]);
+
+  // "Practice" from the memorization plan: loop the portion and open it in the reader.
+  const practice = (surahNo: number, from: number, to: number) => {
+    startRange({ surah: surahNo, from, to, rounds: 5 }, settings.reciter);
+    go(surahNo, from);
+  };
 
   const sheetAyah = selectedAyah ? ayahs.find(a => a.number === selectedAyah) ?? null : null;
 
   return (
     <div className="min-h-dvh">
       <AppHeader
-        title={surah ? (ar ? surah.name : surah.englishName) : t('appName')}
+        title={route.plan ? t('planTitle') : surah ? (ar ? surah.name : surah.englishName) : t('appName')}
         subtitle={surah ? `${ar ? surah.englishName : surah.englishNameTranslation} · ${surah.numberOfAyahs} ${t('ayahs')}` : undefined}
-        onBack={surah ? () => { setTafsirAyah(null); go(null); } : undefined}
+        onBack={surah || route.plan ? () => { setTafsirAyah(null); go(null); } : undefined}
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenAccount={() => setAccountOpen(true)}
         signedIn={!!user}
@@ -87,15 +96,18 @@ export default function App() {
       )}
 
       <main>
-        {surah ? (
-          <Reader surah={surah} focusAyah={route.ayah} onSelectAyah={setSelectedAyah} onOpenTafsir={setTafsirAyah} onOpenDownload={() => setDownloadOpen(true)} />
+        {route.plan ? (
+          <PlanPage surahs={surahs} onPractice={practice} />
+        ) : surah ? (
+          <Reader surah={surah} focusAyah={route.ayah} onSelectAyah={setSelectedAyah} onOpenTafsir={setTafsirAyah} onOpenDownload={() => setDownloadOpen(true)} onOpenRange={() => setRangeOpen(true)} />
         ) : (
-          <Home surahs={surahs} loading={status === 'loading'} error={status === 'error'} onRetry={loadSurahs} onOpen={(s, a) => go(s, a)} />
+          <Home surahs={surahs} loading={status === 'loading'} error={status === 'error'} onRetry={loadSurahs} onOpen={(s, a) => go(s, a)} onOpenPlan={goPlan} />
         )}
       </main>
 
       {surah && <AyahSheet surah={surah} ayah={sheetAyah} open={selectedAyah !== null} onOpenChange={o => !o && setSelectedAyah(null)} />}
       {surah && <TafsirSheet surah={surah} ayahs={ayahs} ayahNumber={tafsirAyah} onAyahChange={setTafsirAyah} onClose={() => setTafsirAyah(null)} />}
+      {surah && <RangeSheet surah={surah} open={rangeOpen} onOpenChange={setRangeOpen} suggestFrom={route.ayah ?? undefined} />}
       {surah && <DownloadSheet surah={surah} open={downloadOpen} onOpenChange={setDownloadOpen} />}
       <PlayerBar surahs={surahs} />
       <SettingsSheet open={settingsOpen} onOpenChange={setSettingsOpen} surahs={surahs} />

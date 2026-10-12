@@ -48,7 +48,7 @@ export function PlayerBar() {
   const { settings, repeatTimes, t, isRTL } = useSettings();
   const { byNumber } = useSurahs();
   const { setPlayerOpen } = useUI();
-  const { playing, failed, duration, time, pass, sleep, sleepLeft, gapLeft, gapTotal, gapPaused, next, previous } = usePlayer();
+  const { playing, failed, duration, time, pass, range, round, sleep, sleepLeft, gapLeft, gapTotal, gapPaused, next, previous } = usePlayer();
   if (!playing) return null;
 
   const surah = byNumber(playing.surah);
@@ -62,7 +62,7 @@ export function PlayerBar() {
     ? t('error')
     : inGap
       ? `${t('yourTurn')} · ${gapPaused ? t('gapPausedLabel') : t('gapSeconds', { n: Math.ceil(gapLeft) })}`
-      : `${sleepLabel}${reciter ? (isRTL ? reciter.ar : reciter.en) : ''}${repeatLabel}`;
+      : `${range ? `${t('rangeInfo', { from: range.from, to: range.to })} · ${range.rounds === 0 ? t('rangeRoundForever', { i: round }) : t('rangeRound', { i: round, n: range.rounds })} · ` : ''}${sleepLabel}${reciter ? (isRTL ? reciter.ar : reciter.en) : ''}${repeatLabel}`;
 
   return (
     <View pointerEvents="box-none" style={{ paddingBottom: Math.max(insets.bottom, 12) }} className="absolute inset-x-0 bottom-0 px-3">
@@ -107,7 +107,7 @@ export function PlayerSheet() {
   const { settings, update, t, isRTL } = useSettings();
   const { byNumber } = useSurahs();
   const { pinned, others } = useOrderedReciters();
-  const { playing, time, duration, stop, next, previous, seek, changeReciter } = usePlayer();
+  const { playing, time, duration, range, clearRange, stop, next, previous, seek, changeReciter } = usePlayer();
   const [scrub, setScrub] = useState<number | null>(null);
   if (!playing) return null;
 
@@ -172,6 +172,11 @@ export function PlayerSheet() {
         <Field label={t('speed')}>
           <Chips label={t('speed')} value={settings.speed} onChange={speed => update({ speed })} options={SPEEDS.map(v => ({ value: v, label: `${v}x` }))} />
         </Field>
+        {range && (
+          <Button variant="outline" className="h-11 rounded-xl" onPress={clearRange}>
+            <Text>{t('rangeStop')} · {t('rangeInfo', { from: range.from, to: range.to })}</Text>
+          </Button>
+        )}
         <RepeatControl />
         <SleepControl />
         <AutoNextSurahControl />

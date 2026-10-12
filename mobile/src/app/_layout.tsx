@@ -20,9 +20,11 @@ import { AyahSheet } from '@/components/sheets/ayah-sheet';
 import { DownloadSheet } from '@/components/sheets/download-sheet';
 import { SettingsSheet } from '@/components/sheets/settings-sheet';
 import { TafsirSheet } from '@/components/sheets/tafsir-sheet';
+import { RangeSheet } from '@/components/sheets/range-sheet';
 import { initStorage } from '@/lib/storage';
 import { AuthProvider } from '@/context/auth';
 import { DownloadsProvider } from '@/context/downloads';
+import { HifzProvider } from '@/context/hifz';
 import { LibraryProvider } from '@/context/library';
 import { PlayerProvider, usePlayer } from '@/context/player';
 import { SettingsProvider, useSettings } from '@/context/settings';
@@ -54,6 +56,7 @@ function Shell() {
         <AyahSheet />
         <TafsirSheet />
         <DownloadSheet />
+        <RangeSheet />
         <SettingsSheet />
         <AccountSheet />
         <PlayerSheet />
@@ -92,9 +95,11 @@ export default function RootLayout() {
                 <DownloadsProvider>
                   <PlayerProvider>
                     <SurahsProvider>
-                      <UIProvider>
-                        <Shell />
-                      </UIProvider>
+                      <HifzProvider>
+                        <UIProvider>
+                          <Shell />
+                        </UIProvider>
+                      </HifzProvider>
                     </SurahsProvider>
                   </PlayerProvider>
                 </DownloadsProvider>

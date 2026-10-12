@@ -7,7 +7,15 @@ import { useSettings } from '@/context/settings';
 import { useLibrary } from '@/context/library';
 
 export type Sleep = { kind: 'time'; minutes: number; endsAt: number } | { kind: 'surah' };
-type Action = 'next' | 'repeat' | 'nextSurah';
+type Action = 'next' | 'repeat' | 'nextSurah' | 'rangeRestart';
+
+/** A block of ayahs looped as a whole: ayahs from..to of one surah, `rounds` times (0 = until stopped). */
+export interface Range {
+  surah: number;
+  from: number;
+  to: number;
+  rounds: number;
+}
 
 export interface Playing {
   surah: number;
@@ -26,6 +34,14 @@ interface PlayerContextValue {
   duration: number;
   /** Which pass of the current ayah is playing (1 = first). */
   pass: number;
+  /** The ayah range being looped, if any. */
+  range: Range | null;
+  /** Which round of the range is playing (1 = first). */
+  round: number;
+  startRange: (range: Range, reciter?: string) => void;
+  clearRange: () => void;
+  /** Current playback position in seconds (read live, for smooth word highlighting). */
+  getTime: () => number;
   /** Seconds left in the pause between ayahs, or null when not in a pause. */
   gapLeft: number | null;
   gapTotal: number;
@@ -37,7 +53,8 @@ interface PlayerContextValue {
   autoSurah: { surah: number; n: number } | null;
   /** Surah list: ayah counts (for rolling over) and names (for the lock screen). */
   setSurahData: (surahs: Surah[]) => void;
-  play: (surah: number, ayah: number, reciter?: string) => void;
+  /** Plays one ayah. A plain play ends any range loop; `keepRange` is used internally while looping. */
+  play: (surah: number, ayah: number, reciter?: string, keepRange?: boolean) => void;
   toggle: () => void;
   stop: () => void;
   next: () => void;
@@ -61,6 +78,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [duration, setDuration] = useState(0);
   const [pass, setPass] = useState(1);
   const passRef = useRef(1);
+  const [range, setRange] = useState<Range | null>(null);
+  const [round, setRound] = useState(1);
+  const rangeRef = useRef<Range | null>(null);
+  const roundRef = useRef(1);
   const surahs = useRef<Surah[]>([]);
   const online = useRef(true);
   const endedHandled = useRef(false);
@@ -101,9 +122,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [settings.lang]);
 
   const play = useCallback(
-    (surah: number, ayah: number, reciter = live.current.reciter) => {
+    (surah: number, ayah: number, reciter = live.current.reciter, keepRange = false) => {
       const p = player.current;
       if (!p) return;
+      if (!keepRange && rangeRef.current) { rangeRef.current = null; setRange(null); }
       setFailed(false);
       endedHandled.current = false;
       usedFallback.current = false;
@@ -135,6 +157,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       p.volume = 1;
       try { p.setActiveForLockScreen(false); } catch { /* ignore */ }
     }
+    rangeRef.current = null;
+    setRange(null);
     setSleepState(null);
     setSleepLeft(null);
     setGapLeft(null);
@@ -149,7 +173,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const next = useCallback(() => {
     const p = live.current.playing;
-    if (p && p.ayah < surahLength(p.surah)) playRef.current(p.surah, p.ayah + 1, p.reciter);
+    const limit = rangeRef.current ? rangeRef.current.to : p ? surahLength(p.surah) : 0;
+    if (p && p.ayah < limit) playRef.current(p.surah, p.ayah + 1, p.reciter, true);
   }, []);
 
   const previous = useCallback(() => {
@@ -159,7 +184,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setGapLeft(null);
     // Like most players: past the first seconds, "previous" restarts the current ayah.
     if (p.currentTime > 3 || cur.ayah <= 1) { void p.seekTo(0); p.play(); }
-    else playRef.current(cur.surah, cur.ayah - 1, cur.reciter);
+    else playRef.current(cur.surah, cur.ayah - 1, cur.reciter, true);
   }, []);
 
   const gapRef = useRef(false);
@@ -184,7 +209,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const changeReciter = useCallback((reciter: string) => {
     const cur = live.current.playing;
-    if (cur) playRef.current(cur.surah, cur.ayah, reciter);
+    if (cur) playRef.current(cur.surah, cur.ayah, reciter, true);
   }, []);
 
   const runActionRef = useRef<(kind: Action) => void>(() => {});
@@ -212,14 +237,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         if (!cur || !nextSurah || !surahLength(nextSurah)) { setIsPlaying(false); return; }
         playRef.current(nextSurah, 1, cur.reciter);
         setAutoSurah(prev => ({ surah: nextSurah, n: (prev?.n ?? 0) + 1 }));
+      } else if (kind === 'rangeRestart') {
+        const loop = rangeRef.current;
+        if (!loop || !cur) { setIsPlaying(false); return; }
+        roundRef.current += 1;
+        setRound(roundRef.current);
+        playRef.current(loop.surah, loop.from, cur.reciter, true);
       } else if (kind === 'repeat') {
         passRef.current += 1;
         setPass(passRef.current);
         endedHandled.current = false;
         void p.seekTo(0);
         p.play();
-      } else if (cur && cur.ayah < surahLength(cur.surah)) {
-        playRef.current(cur.surah, cur.ayah + 1, cur.reciter);
+      } else {
+        const limit = rangeRef.current ? rangeRef.current.to : cur ? surahLength(cur.surah) : 0;
+        if (cur && cur.ayah < limit) playRef.current(cur.surah, cur.ayah + 1, cur.reciter, true);
       }
     };
     runActionRef.current = runAction;
@@ -228,7 +260,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const { repeatTimes: times, continuous, playing: cur, autoNext } = live.current;
       if (!cur) return;
       // times: 1 = once, N = N plays in total, 0 = forever.
+      const loop = rangeRef.current;
       if (times === 0 || passRef.current < times) schedule('repeat');
+      else if (loop) {
+        // Looping a range: always walk through it, then start over (or finish after the last round).
+        if (cur.ayah < loop.to) schedule('next');
+        else if (loop.rounds === 0 || roundRef.current < loop.rounds) schedule('rangeRestart');
+        else { rangeRef.current = null; setRange(null); setIsPlaying(false); }
+      }
       else if (continuous && cur.ayah < surahLength(cur.surah)) schedule('next');
       else if (cur.ayah >= surahLength(cur.surah)) {
         // Last ayah of the surah is done.
@@ -319,14 +358,28 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(id);
   }, [sleep]);
 
+  const startRange = useCallback((next: Range, reciter?: string) => {
+    const from = Math.max(1, Math.min(next.from, next.to));
+    const to = Math.max(next.from, next.to);
+    const loop = { ...next, from, to };
+    rangeRef.current = loop;
+    roundRef.current = 1;
+    setRange(loop);
+    setRound(1);
+    playRef.current(loop.surah, from, reciter, true);
+  }, []);
+
+  const clearRange = useCallback(() => { rangeRef.current = null; setRange(null); }, []);
+  const getTime = useCallback(() => player.current?.currentTime ?? 0, []);
+
   const setSurahData = useCallback((list: Surah[]) => { surahs.current = list; }, []);
 
   const value = useMemo(
     () => ({
-      playing, isPlaying, loading, failed, time, duration, pass, gapLeft, gapTotal, gapPaused, sleep, sleepLeft, setSleep, autoSurah,
+      playing, isPlaying, loading, failed, time, duration, pass, range, round, startRange, clearRange, getTime, gapLeft, gapTotal, gapPaused, sleep, sleepLeft, setSleep, autoSurah,
       setSurahData, play, toggle, stop, next, previous, seek, changeReciter,
     }),
-    [playing, isPlaying, loading, failed, time, duration, pass, gapLeft, gapTotal, gapPaused, sleep, sleepLeft, setSleep, autoSurah, setSurahData, play, toggle, stop, next, previous, seek, changeReciter],
+    [playing, isPlaying, loading, failed, time, duration, pass, range, round, startRange, clearRange, getTime, gapLeft, gapTotal, gapPaused, sleep, sleepLeft, setSleep, autoSurah, setSurahData, play, toggle, stop, next, previous, seek, changeReciter],
   );
   return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;
 }

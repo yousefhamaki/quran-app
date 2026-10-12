@@ -13,7 +13,13 @@ A premium, bilingual (Arabic / English) Quran web app. Read any surah, tap an ay
 - Every choice is remembered on the device: reciter, speed, text size, theme, language, tafsir, pause, repeat, memorize mode, pinned reciters
 - **Offline downloads**: save a surah (text + audio for your reciter) and listen without internet. Saved surahs are listed under "Available offline" on the home screen and marked with a check; an offline banner appears when you lose connection. Manage storage in Settings. Anything you open is also cached for reading, and the service worker keeps the app shell and fonts so it opens offline (production build)
 - **Sleep timer** (5–60 min with a 5-second fade-out, or stop at the end of the surah) and **continue to the next surah** automatically for hands-free listening. Online it follows the mushaf order; offline it jumps to the next surah you have downloaded (for the same reciter), skipping the rest
+- **Repeat a range**: loop ayahs 5–9 (or any block) as one unit, 2×–10× or until stopped, with a "Round 2/5" indicator
+- **Memorization plan with spaced repetition**: pick a surah and a daily pace; each day you get a new portion to learn plus the earlier portions that are due for review (1, 2, 4, 8… days). "Practice" opens the portion and loops it
+- **Word-by-word highlighting** while the audio plays (exact Quran.com timestamps for Alafasy, Abdul Basit, Husary, Minshawi, Tablawi, Sudais, Shuraym and Shatri; estimated for the others) and **tajweed colours** with a built-in colour guide
 - **Memorize mode**: blurs the Arabic text so you recite from memory; reveal one ayah or all of them with the eye buttons
+- **Repeat a range**: loop ayahs 5–9 as one block N times (or forever)
+- **Memorization plan**: pick a surah and a daily pace; spaced repetition (1, 2, 4, 8… days) shows what to learn and review today
+- **Word-by-word highlighting** that follows the reciter (Quran.com timings, estimated when unavailable) and optional **tajweed colours** with a legend
 - **Repeat each ayah** 2×, 3×, 5×, 7×, 10× or forever, with a "Repeat 2/5" indicator, for memorizing
 - **Pause between ayahs**: set Normal or 1–60 seconds of silence after each ayah (with a live "Your turn" countdown) so you can repeat it yourself; works with continuous play and repeat-ayah
 - **Tafsir button on every ayah**: opens a dedicated reader with all sources one tap away (Al-Muyassar, As-Saadi, Ibn Kathir Arabic, Ibn Kathir English) and previous/next ayah navigation; your source choice is remembered
@@ -28,10 +34,10 @@ A premium, bilingual (Arabic / English) Quran web app. Read any surah, tap an ay
 | Purpose | API |
 |---|---|
 | Quran text + translation + search | [AlQuran Cloud](https://alquran.cloud/api) |
-| Tafsir | [Quran.com API v4](https://api.quran.com/api/v4) |
+| Tafsir, tajweed text, word-by-word timing | [Quran.com API v4](https://api.quran.com/api/v4) |
 | Per-ayah audio | [EveryAyah](https://everyayah.com) |
 
-Reciters are listed in [`src/lib/quran.ts`](src/lib/quran.ts); add more by appending an EveryAyah folder name.
+Reciters are listed in [`src/lib/quran.ts`](src/lib/quran.ts); add more by appending an EveryAyah folder name. After adding one, run `npm run check:reciters` (add `-- --full` to test every ayah) to confirm the audio really exists — a wrong folder name silently returns "not found".
 
 ## Run the frontend
 
