@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { View } from 'react-native';
-import { Trash2 } from 'lucide-react-native';
+import { ArrowDownToLine, Trash2 } from 'lucide-react-native';
+import { QueueSheet } from '@/components/sheets/queue-sheet';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
@@ -16,6 +17,7 @@ export function DownloadsList() {
   const { t, isRTL } = useSettings();
   const { byNumber } = useSurahs();
   const [confirming, setConfirming] = useState(false);
+  const [queueOpen, setQueueOpen] = useState(false);
   const total = records.reduce((sum, d) => sum + d.bytes, 0);
   const sorted = [...records].sort((a, b) => a.surah - b.surah);
 
@@ -24,10 +26,28 @@ export function DownloadsList() {
     setConfirming(false);
   };
 
-  if (records.length === 0) return <Text className="text-sm text-muted-foreground">{t('offlineEmpty')}</Text>;
+  const queueButton = (
+    <>
+      <Button variant="outline" className="h-11 rounded-xl" onPress={() => setQueueOpen(true)}>
+        <Icon as={ArrowDownToLine} className="size-4" />
+        <Text>{t('queueOpen')}</Text>
+      </Button>
+      <QueueSheet open={queueOpen} onClose={() => setQueueOpen(false)} />
+    </>
+  );
+
+  if (records.length === 0) {
+    return (
+      <View className="gap-3">
+        <Text className="text-sm text-muted-foreground">{t('offlineEmpty')}</Text>
+        {queueButton}
+      </View>
+    );
+  }
 
   return (
     <View className="gap-3">
+      {queueButton}
       {sorted.map(d => {
         const s = byNumber(d.surah);
         const r = RECITERS.find(x => x.id === d.reciter);

@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, ChevronRight, CloudDownload } from 'lucide-react';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/utils';
-import { TAFSIRS, fetchTafsir, type Ayah, type Surah } from '@/lib/quran';
+import { TAFSIRS, downloadTafsir, fetchTafsir, isTafsirOffline, type Ayah, type Surah } from '@/lib/quran';
 import { useSettings } from '@/context/settings';
 
 interface Props {
@@ -25,6 +25,8 @@ export function TafsirSheet({ surah, ayahs, ayahNumber, onAyahChange, onClose }:
   const { settings, update, t } = useSettings();
   const [result, setResult] = useState<State>({ state: 'loading' });
   const [attempt, setAttempt] = useState(0);
+  const [saving, setSaving] = useState<'idle' | 'busy' | 'failed'>('idle');
+  const [savedTick, setSavedTick] = useState(0);
   const ar = settings.lang === 'ar';
   const open = ayahNumber !== null;
   const ayah = ayahs.find(a => a.number === ayahNumber) ?? null;
@@ -40,6 +42,13 @@ export function TafsirSheet({ surah, ayahs, ayahNumber, onAyahChange, onClose }:
       .catch(() => !cancelled && setResult({ state: 'error' }));
     return () => { cancelled = true; };
   }, [source.id, surah.number, ayahNumber, attempt]);
+
+  useEffect(() => { setSaving('idle'); }, [source.id, surah.number]);
+  const saved = isTafsirOffline(source.id, surah.number) || savedTick < 0;
+  const save = async () => {
+    setSaving('busy');
+    try { await downloadTafsir(source.id, surah.number); setSaving('idle'); setSavedTick(n => n + 1); } catch { setSaving('failed'); }
+  };
 
   const go = (delta: number) => {
     if (ayahNumber === null) return;
@@ -83,7 +92,18 @@ export function TafsirSheet({ surah, ayahs, ayahNumber, onAyahChange, onClose }:
           </ToggleGroup>
         </div>
 
-        <ScrollArea className="h-[clamp(8rem,calc(100dvh-26rem),24rem)] border-t">
+        <div className="px-5 pb-3">
+          {saved ? (
+            <p className="flex items-center gap-2 text-sm text-primary"><CheckCircle2 className="size-4" aria-hidden /> {t('tafsirSaved')}</p>
+          ) : (
+            <Button variant="outline" className="h-11 gap-2 rounded-xl" disabled={saving === 'busy'} onClick={() => void save()}>
+              <CloudDownload className="size-4" aria-hidden /> {saving === 'busy' ? t('tafsirSaving') : t('tafsirSave')}
+            </Button>
+          )}
+          {saving === 'failed' && <p role="alert" className="mt-2 text-sm text-destructive">{t('tafsirSaveFailed')}</p>}
+        </div>
+
+        <ScrollArea className="h-[clamp(8rem,calc(100dvh-30rem),24rem)] border-t">
           <div className="px-5 py-4" aria-live="polite">
             {result.state === 'loading' && (
               <div className="space-y-3" aria-label={t('loadingTafsir')} aria-busy>

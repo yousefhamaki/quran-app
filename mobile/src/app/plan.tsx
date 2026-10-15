@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { CalendarDays, Check, CheckCircle2, ChevronDown, GraduationCap, Repeat, Trash2 } from 'lucide-react-native';
+import { CalendarDays, Check, CheckCircle2, ChevronDown, ClipboardCheck, GraduationCap, Repeat, Trash2 } from 'lucide-react-native';
+import { SelfTestSheet } from '@/components/sheets/self-test-sheet';
+import { weekCalendar } from '@/lib/study';
 import { AppHeader } from '@/components/app-header';
 import { Chips } from '@/components/chips';
 import { Sheet } from '@/components/sheet';
@@ -13,6 +15,7 @@ import { Progress } from '@/components/ui/progress';
 import { Text } from '@/components/ui/text';
 import { cn } from '@/lib/utils';
 import { addDays } from '@/lib/hifz';
+import { useHabit } from '@/context/habit';
 import { useHifz } from '@/context/hifz';
 import { usePlayer } from '@/context/player';
 import { useSettings } from '@/context/settings';
@@ -30,12 +33,16 @@ export default function PlanScreen() {
   const { t, isRTL, settings } = useSettings();
   const { surahs, byNumber } = useSurahs();
   const { startRange } = usePlayer();
-  const { plan, today, learn, due, stats, coming, create, markLearned, rate, remove } = useHifz();
+  const { plan, today, learn, due, stats, coming, create, markLearned: learned, rate: rateCard, remove } = useHifz();
+  const { recordRead } = useHabit();
+  const markLearned = () => { learned(); recordRead(); };
+  const rate: typeof rateCard = (id, rating) => { rateCard(id, rating); recordRead(); };
   const [surahNo, setSurahNo] = useState(67);
   const [startAyah, setStartAyah] = useState(1);
   const [pace, setPace] = useState(3);
   const [picking, setPicking] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [testOpen, setTestOpen] = useState(false);
   const chosen = byNumber(surahNo);
   const nameOf = (n: number) => { const s = byNumber(n); return s ? (isRTL ? s.name : s.englishName) : `#${n}`; };
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/'));
@@ -46,14 +53,21 @@ export default function PlanScreen() {
     router.push({ pathname: '/surah/[id]', params: { id: String(surah), ayah: String(from) } });
   };
 
+  const testRange = plan ? { surah: plan.surah, from: plan.start, to: Math.max(plan.start + 1, Math.min(plan.total, plan.nextAyah - 1)) } : undefined;
+  const testButton = (
+    <Button variant="outline" className="h-12 rounded-xl" onPress={() => setTestOpen(true)}>
+      <Icon as={ClipboardCheck} className="size-5" />
+      <Text>{t('testTitle')}</Text>
+    </Button>
+  );
   const tomorrow = addDays(today, 1);
   const dayLabel = (day: string) =>
     day === tomorrow ? t('planTomorrow') : new Date(`${day}T00:00:00`).toLocaleDateString(isRTL ? 'ar' : 'en', { weekday: 'short', day: 'numeric', month: 'short' });
 
   return (
     <View className="flex-1 bg-background">
-      <AppHeader title={t('planTitle')} onBack={goBack} />
-      <ScrollView contentContainerClassName="gap-5 px-4 pb-44 pt-5" keyboardShouldPersistTaps="handled">
+      <AppHeader title={t('planTitle')} />
+      <ScrollView contentContainerClassName="gap-5 px-4 pb-56 pt-5" keyboardShouldPersistTaps="handled">
         {!plan || !stats ? (
           <>
             <View className="flex-row items-start gap-4 rounded-3xl bg-secondary p-5">
@@ -87,6 +101,7 @@ export default function PlanScreen() {
                 <Text className="text-base">{t('planCreate')}</Text>
               </Button>
             </Panel>
+            {testButton}
           </>
         ) : (
           <>
@@ -159,6 +174,35 @@ export default function PlanScreen() {
               ))
             )}
 
+            <View className="gap-2">
+              <View className="flex-row items-center gap-2">
+                <Icon as={CalendarDays} className="size-4 text-muted-foreground" />
+                <Text accessibilityRole="header" className="text-sm font-medium text-muted-foreground">{t('planWeek')}</Text>
+              </View>
+              <View className="flex-row gap-1.5">
+                {weekCalendar(plan.cards, today, addDays).map(d => {
+                  const date = new Date(`${d.day}T00:00:00`);
+                  const loc = isRTL ? 'ar' : 'en';
+                  return (
+                    <View
+                      key={d.day}
+                      accessible
+                      accessibilityLabel={`${date.toLocaleDateString(loc, { weekday: 'long', day: 'numeric', month: 'long' })}: ${t('planWeekCount', { n: d.count })}`}
+                      className={cn('flex-1 items-center gap-1 rounded-2xl border border-border py-2', d.isToday && 'border-primary bg-secondary')}
+                    >
+                      <Text className="text-[11px] text-muted-foreground">{date.toLocaleDateString(loc, { weekday: 'short' })}</Text>
+                      <Text className="text-sm font-medium">{date.getDate().toLocaleString(isRTL ? 'ar-EG' : 'en')}</Text>
+                      <View className={cn('size-7 items-center justify-center rounded-full', d.count > 0 ? 'bg-primary' : 'bg-muted')}>
+                        <Text className={cn('text-xs font-semibold', d.count > 0 ? 'text-primary-foreground' : 'text-muted-foreground')}>{d.count.toLocaleString(isRTL ? 'ar-EG' : 'en')}</Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+
+            {testButton}
+
             {coming.length > 0 && (
               <View className="gap-2">
                 <View className="flex-row items-center gap-2">
@@ -194,6 +238,8 @@ export default function PlanScreen() {
           </>
         )}
       </ScrollView>
+
+      <SelfTestSheet open={testOpen} onClose={() => setTestOpen(false)} initial={testRange} />
 
       {/* Surah picker */}
       <Sheet open={picking} tall onClose={() => setPicking(false)} title={t('planSurah')}>

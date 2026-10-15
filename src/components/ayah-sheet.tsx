@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Bookmark, BookmarkCheck, Play } from 'lucide-react';
+import { Bookmark, BookmarkCheck, Play, Share2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { shareAyahCard } from '@/lib/share-card';
+import { translationDir } from '@/lib/quran';
+import { useTheme } from '@/context/theme';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -23,6 +27,7 @@ export function AyahSheet({ surah, ayah, open, onOpenChange }: Props) {
   const { isBookmarked, toggleBookmark } = useLibrary();
   const { play } = usePlayer();
   const [choice, setChoice] = useState(settings.reciter);
+  const { resolvedTheme } = useTheme();
   const ar = settings.lang === 'ar';
   const number = ayah?.number ?? 0;
   const marked = ayah ? isBookmarked(surah.number, number) : false;
@@ -35,6 +40,17 @@ export function AyahSheet({ surah, ayah, open, onOpenChange }: Props) {
     play(surah.number, number, choice);
     onOpenChange(false);
   }
+
+  const share = async () => {
+    if (!ayah) return;
+    try {
+      const result = await shareAyahCard(
+        { ar: ayah.ar, translation: settings.showTranslation ? ayah.en : undefined, translationDir: translationDir(settings.translation), reference: `${ar ? surah.name : surah.englishName} · ${number}`, dark: resolvedTheme === 'dark' },
+        `quran-${surah.number}-${number}.png`,
+      );
+      if (result === 'downloaded') toast.success(t('shareDownloaded'));
+    } catch { toast.error(t('shareFailed')); }
+  };
 
   const chosen = RECITERS.find(r => r.id === choice);
 
@@ -60,6 +76,9 @@ export function AyahSheet({ surah, ayah, open, onOpenChange }: Props) {
           <Button variant="ghost" className="h-11 w-full justify-center gap-2 rounded-xl" onClick={() => ayah && toggleBookmark(surah.number, number)}>
             {marked ? <BookmarkCheck className="size-5 text-gold" aria-hidden /> : <Bookmark className="size-5" aria-hidden />}
             {marked ? t('removeBookmark') : t('bookmark')}
+          </Button>
+          <Button variant="ghost" className="h-11 w-full justify-center gap-2 rounded-xl" onClick={() => void share()}>
+            <Share2 className="size-5" aria-hidden /> {t('shareAyah')}
           </Button>
         </div>
       </SheetContent>

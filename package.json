@@ -10,9 +10,11 @@
     "preview": "vite preview",
     "check:reciters": "node scripts/check-reciters.mjs",
     "test:lib": "node --test scripts/lib.test.ts",
-    "check:words": "node scripts/check-words.ts"
+    "check:words": "node scripts/check-words.ts",
+    "check:surah-reciters": "node scripts/check-surah-reciters.mjs"
   },
   "dependencies": {
+    "adhan": "^4.4.6",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cn": "^0.4.0",

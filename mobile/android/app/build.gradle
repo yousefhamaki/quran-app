@@ -180,3 +180,8 @@ dependencies {
         implementation jscFlavor
     }
 }
+
+// quran: drop duplicate work-runtime-ktx
+configurations.all {
+    exclude group: 'androidx.work', module: 'work-runtime-ktx'
+}

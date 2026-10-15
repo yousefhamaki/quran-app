@@ -12,6 +12,7 @@ import { GapControl } from '@/components/gap-control';
 import { RepeatControl } from '@/components/repeat-control';
 import { SleepControl, AutoNextSurahControl, formatCountdown } from '@/components/sleep-control';
 import { cn } from '@/lib/utils';
+import { usePlayerSheet } from '@/lib/ui-store';
 import { RECITERS, type Surah } from '@/lib/quran';
 import { useSettings } from '@/context/settings';
 import { usePlayer } from '@/context/player';
@@ -35,11 +36,11 @@ function PlayPause({ className }: { className?: string }) {
   );
 }
 
-export function PlayerBar({ surahs }: { surahs: Surah[] }) {
+export function PlayerBar({ surahs, lifted = false }: { surahs: Surah[]; /** Float above the bottom navigation. */ lifted?: boolean }) {
   const { settings, update, repeatTimes, t } = useSettings();
   const { playing, failed, time, duration, pass, range, round, clearRange, sleep, sleepLeft, gapLeft, gapTotal, gapPaused, stop, next, previous, seek, changeReciter } = usePlayer();
   const { pinned, others } = useOrderedReciters();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = usePlayerSheet();
   if (!playing) return null;
 
   const ar = settings.lang === 'ar';
@@ -50,11 +51,12 @@ export function PlayerBar({ surahs }: { surahs: Surah[] }) {
   const inGap = gapLeft !== null;
   // During the pause between ayahs the line under the bar counts down instead of showing audio progress.
   const pct = inGap ? (gapTotal > 0 ? Math.min(100, (gapLeft / gapTotal) * 100) : 0) : duration > 0 ? Math.min(100, (time / duration) * 100) : 0;
-  const atEnd = surah ? playing.ayah >= surah.numberOfAyahs : false;
+  const wholeSurah = playing.ayah === 0; // a whole-surah recitation: no per-ayah position
+  const atEnd = wholeSurah ? playing.surah >= 114 : surah ? playing.ayah >= surah.numberOfAyahs : false;
 
   return (
     <>
-      <div role="region" aria-label={t('nowPlaying')} className="fixed inset-x-0 bottom-0 z-40 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <div role="region" aria-label={t('nowPlaying')} className={cn('fixed inset-x-0 z-40 px-3', lifted ? 'bottom-[calc(4rem+env(safe-area-inset-bottom))] pb-2' : 'bottom-0 pb-[max(0.75rem,env(safe-area-inset-bottom))]')}>
         <div className="relative mx-auto max-w-3xl overflow-hidden rounded-3xl border bg-card/90 shadow-[var(--shadow-soft)] backdrop-blur-xl">
           <div className="h-1 w-full bg-muted" aria-hidden>
             <div className={cn('h-full transition-[width] duration-100 ease-linear', inGap ? 'bg-gold' : 'bg-primary')} style={{ width: `${pct}%` }} />
@@ -67,7 +69,7 @@ export function PlayerBar({ surahs }: { surahs: Surah[] }) {
               className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl p-1 text-start focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
             >
               <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-primary font-semibold text-primary-foreground tabular-nums" aria-hidden>
-                {playing.ayah}
+                {wholeSurah ? playing.surah : playing.ayah}
               </span>
               <span className="min-w-0 flex-1">
                 <span className="ar-safe block truncate text-sm font-medium">{surahLabel}</span>
@@ -96,7 +98,7 @@ export function PlayerBar({ surahs }: { surahs: Surah[] }) {
         <SheetContent side="bottom" className="mx-auto w-full max-w-3xl gap-0 rounded-t-3xl p-0">
           <SheetHeader className="px-5 pt-5 pb-2 text-start">
             <SheetTitle className={cn('text-xl', ar ? 'font-quran' : 'font-display')}>
-              {surahLabel} · {t('ayah')} {playing.ayah}
+              {wholeSurah ? surahLabel : `${surahLabel} · ${t('ayah')} ${playing.ayah}`}
             </SheetTitle>
             <SheetDescription>{reciter ? reciterName(reciter) : ''}</SheetDescription>
           </SheetHeader>

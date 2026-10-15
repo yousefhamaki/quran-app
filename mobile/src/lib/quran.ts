@@ -1,10 +1,35 @@
 import { cachedJson } from '@/lib/offline';
+import { loadJSON, saveJSON } from '@/lib/storage';
+import { SURAH_RECITERS, isSurahReciterId, surahAudioUrl } from '@/lib/surah-reciters';
 import { parseTajweed, type Word } from '@/lib/tajweed';
 import { QURAN_COM_RECITATION, normalizeSegments, type WordSegment } from '@/lib/wordtiming';
 
 const BASE = 'https://api.alquran.cloud/v1';
 
-export const surahTextUrl = (n: number) => `${BASE}/surah/${n}/editions/quran-uthmani,en.sahih`;
+export interface Translation {
+  /** AlQuran Cloud edition id. */
+  id: string;
+  name: string;
+  /** The language written in its own script. */
+  native: string;
+  dir: 'ltr' | 'rtl';
+}
+
+export const TRANSLATIONS: Translation[] = [
+  { id: 'en.sahih', name: 'English (Sahih International)', native: 'English', dir: 'ltr' },
+  { id: 'ur.jalandhry', name: 'Urdu (Jalandhry)', native: 'اردو', dir: 'rtl' },
+  { id: 'fr.hamidullah', name: 'French (Hamidullah)', native: 'Français', dir: 'ltr' },
+  { id: 'id.indonesian', name: 'Indonesian (Ministry of Religion)', native: 'Bahasa Indonesia', dir: 'ltr' },
+  { id: 'tr.diyanet', name: 'Turkish (Diyanet)', native: 'Türkçe', dir: 'ltr' },
+];
+
+let translationEdition = 'en.sahih';
+/** The translation fetched with every surah. Set by the settings; the fetch layer reads it. */
+export const setTranslationEdition = (id: string) => { if (TRANSLATIONS.some(x => x.id === id)) translationEdition = id; };
+export const getTranslationEdition = () => translationEdition;
+export const translationDir = (id: string): 'ltr' | 'rtl' => TRANSLATIONS.find(x => x.id === id)?.dir ?? 'ltr';
+
+export const surahTextUrl = (n: number) => `${BASE}/surah/${n}/editions/quran-uthmani,${translationEdition}`;
 
 export interface Surah {
   number: number;
@@ -25,10 +50,12 @@ export interface Reciter {
   id: string;
   ar: string;
   en: string;
+  /** 'surah' = one file per whole surah (played back to back); otherwise one file per ayah. */
+  kind?: 'surah';
 }
 
 // EveryAyah folder names; free per-ayah MP3 recitations.
-export const RECITERS: Reciter[] = [
+const AYAH_RECITERS: Reciter[] = [
   { id: 'Alafasy_128kbps', ar: 'مشاري العفاسي', en: 'Mishary Alafasy' },
   { id: 'Abdul_Basit_Murattal_192kbps', ar: 'عبد الباسط عبد الصمد', en: 'Abdul Basit (Murattal)' },
   { id: 'Husary_128kbps', ar: 'محمود خليل الحصري', en: 'Mahmoud Al-Husary' },
@@ -40,7 +67,52 @@ export const RECITERS: Reciter[] = [
   { id: 'Abu_Bakr_Ash-Shaatree_128kbps', ar: 'أبو بكر الشاطري', en: 'Abu Bakr Ash-Shatri' },
   { id: 'Hudhaify_128kbps', ar: 'علي الحذيفي', en: 'Ali Al-Hudhaify' },
   { id: 'Muhammad_Ayyoub_128kbps', ar: 'محمد أيوب', en: 'Muhammad Ayyub' },
+  { id: 'Hani_Rifai_192kbps', ar: 'هاني الرفاعي', en: 'Hani Ar-Rifai' },
+  { id: 'Abdullah_Basfar_192kbps', ar: 'عبد الله بصفر', en: 'Abdullah Basfar' },
+  { id: 'Salah_Al_Budair_128kbps', ar: 'صلاح البدير', en: 'Salah Al-Budair' },
+  { id: 'Yasser_Ad-Dussary_128kbps', ar: 'ياسر الدوسري', en: 'Yasser Ad-Dosari' },
+  { id: 'Nasser_Alqatami_128kbps', ar: 'ناصر القطامي', en: 'Nasser Al-Qatami' },
+  { id: 'Muhammad_Jibreel_128kbps', ar: 'محمد جبريل', en: 'Muhammad Jibreel' },
+  { id: 'Khaalid_Abdullaah_al-Qahtaanee_192kbps', ar: 'خالد القحطاني', en: 'Khalid Al-Qahtani' },
+  { id: 'Salaah_AbdulRahman_Bukhatir_128kbps', ar: 'صلاح بخاطر', en: 'Salah Bukhatir' },
+  { id: 'Muhsin_Al_Qasim_192kbps', ar: 'محسن القاسم', en: 'Muhsin Al-Qasim' },
+  { id: 'Ghamadi_40kbps', ar: 'سعد الغامدي', en: 'Saad Al-Ghamdi' },
+  { id: 'Ali_Jaber_64kbps', ar: 'علي جابر', en: 'Ali Jaber' },
+  { id: 'Fares_Abbad_64kbps', ar: 'فارس عباد', en: 'Fares Abbad' },
+  { id: 'Ayman_Sowaid_64kbps', ar: 'أيمن سويد', en: 'Ayman Sowaid' },
+  { id: 'Abdul_Basit_Mujawwad_128kbps', ar: 'عبد الباسط عبد الصمد (مجوّد)', en: 'Abdul Basit (Mujawwad)' },
+  { id: 'Minshawy_Mujawwad_192kbps', ar: 'محمد صديق المنشاوي (مجوّد)', en: 'Al-Minshawi (Mujawwad)' },
+  { id: 'Husary_128kbps_Mujawwad', ar: 'محمود خليل الحصري (مجوّد)', en: 'Mahmoud Al-Husary (Mujawwad)' },
+  { id: 'Husary_Muallim_128kbps', ar: 'محمود خليل الحصري (المعلّم)', en: 'Mahmoud Al-Husary (Muallim)' },
 ];
+
+/** Lower-bitrate copies of popular reciters: about half the data, for slow connections and small phones. */
+const LITE_RECITERS: Reciter[] = [
+  { id: 'Alafasy_64kbps', ar: 'مشاري العفاسي · 64 كيلوبت', en: 'Mishary Alafasy · 64 kbps' },
+  { id: 'Husary_64kbps', ar: 'محمود خليل الحصري · 64 كيلوبت', en: 'Mahmoud Al-Husary · 64 kbps' },
+  { id: 'Hudhaify_64kbps', ar: 'علي الحذيفي · 64 كيلوبت', en: 'Ali Al-Hudhaify · 64 kbps' },
+  { id: 'Abdul_Basit_Murattal_64kbps', ar: 'عبد الباسط عبد الصمد · 64 كيلوبت', en: 'Abdul Basit (Murattal) · 64 kbps' },
+  { id: 'Abdurrahmaan_As-Sudais_64kbps', ar: 'عبد الرحمن السديس · 64 كيلوبت', en: 'Abdurrahman As-Sudais · 64 kbps' },
+  { id: 'Saood_ash-Shuraym_64kbps', ar: 'سعود الشريم · 64 كيلوبت', en: 'Saud Ash-Shuraim · 64 kbps' },
+  { id: 'Maher_AlMuaiqly_64kbps', ar: 'ماهر المعيقلي · 64 كيلوبت', en: 'Maher Al-Muaiqly · 64 kbps' },
+  { id: 'Abu_Bakr_Ash-Shaatree_64kbps', ar: 'أبو بكر الشاطري · 64 كيلوبت', en: 'Abu Bakr Ash-Shatri · 64 kbps' },
+  { id: 'Muhammad_Ayyoub_64kbps', ar: 'محمد أيوب · 64 كيلوبت', en: 'Muhammad Ayyub · 64 kbps' },
+];
+
+/** Whole-surah recitations (one file per surah), shown after the ayah-by-ayah ones. */
+const SURAH_KIND_RECITERS: Reciter[] = SURAH_RECITERS.map(r => ({
+  id: `surah:${r.key}`,
+  ar: `${r.ar} · سورة كاملة`,
+  en: `${r.en} · full surah`,
+  kind: 'surah',
+}));
+
+export const RECITERS: Reciter[] = [...AYAH_RECITERS, ...LITE_RECITERS, ...SURAH_KIND_RECITERS];
+
+export const isSurahReciter = isSurahReciterId;
+
+/** Reciter used for ayah-level features (repeat, range loop, memorize) when the chosen one plays whole surahs. */
+export const AYAH_FALLBACK_RECITER = 'Alafasy_128kbps';
 
 // Folder names that were wrong in earlier versions, mapped to the correct EveryAyah folder.
 const LEGACY_RECITER_IDS: Record<string, string> = {
@@ -58,8 +130,8 @@ export function normalizeReciterId(id: string | undefined | null): string {
 
 const pad = (n: number, l: number) => String(n).padStart(l, '0');
 
-export const audioUrl = (reciter: string, surah: number, ayah: number) =>
-  `https://everyayah.com/data/${reciter}/${pad(surah, 3)}${pad(ayah, 3)}.mp3`;
+export const audioUrl = (reciter: string, surah: number, ayah: number): string =>
+  surahAudioUrl(reciter, surah) ?? `https://everyayah.com/data/${reciter}/${pad(surah, 3)}${pad(ayah, 3)}.mp3`;
 
 export async function fetchSurahs(): Promise<Surah[]> {
   return (await cachedJson<{ data: Surah[] }>(`${BASE}/surah`)).data;
@@ -108,10 +180,80 @@ export async function fetchTafsir(tafsirId: number, surah: number, ayah: number)
   const key = `${tafsirId}:${surah}:${ayah}`;
   const hit = tafsirCache.get(key);
   if (hit !== undefined) return hit;
+  if (isTafsirOffline(tafsirId, surah)) {
+    const text = fromChapter(await loadChapterTafsir(tafsirId, surah), ayah);
+    if (text !== undefined) { tafsirCache.set(key, text); return text; }
+  }
   const json = await cachedJson<{ tafsir: { text: string } }>(`https://api.quran.com/api/v4/tafsirs/${tafsirId}/by_ayah/${surah}:${ayah}`);
   const text = htmlToText(json.tafsir.text);
   tafsirCache.set(key, text);
   return text;
+}
+
+// ---------- offline tafsir: a whole surah's explanations in one request ----------
+
+const chapterTafsir = new Map<string, Map<number, string>>();
+const OFFLINE_KEY = 'quran.tafsirOffline';
+
+/** Tafsir downloads the user asked for, as "tafsirId:surah". */
+const offlineList = (): string[] => loadJSON<string[]>(OFFLINE_KEY, []);
+export const isTafsirOffline = (tafsirId: number, surah: number) => offlineList().includes(`${tafsirId}:${surah}`);
+
+/** The explanation of ayah `n` from a surah's chapter map; ayahs the source explains together share the nearest earlier entry. */
+function fromChapter(map: Map<number, string>, n: number): string | undefined {
+  for (let a = n; a >= 1; a--) { const hit = map.get(a); if (hit !== undefined) return hit; }
+  return undefined;
+}
+
+async function loadChapterTafsir(tafsirId: number, surah: number): Promise<Map<number, string>> {
+  const key = `${tafsirId}:${surah}`;
+  const hit = chapterTafsir.get(key);
+  if (hit) return hit;
+  const json = await cachedJson<{ tafsirs: { verse_key: string; text: string }[] }>(`https://api.quran.com/api/v4/tafsirs/${tafsirId}/by_chapter/${surah}?per_page=300`);
+  const map = new Map<number, string>();
+  for (const x of json.tafsirs) map.set(Number(x.verse_key.split(':')[1]), htmlToText(x.text));
+  chapterTafsir.set(key, map);
+  return map;
+}
+
+/** Saves one surah's tafsir for offline reading (the response is kept by the same cache as the surah text). */
+export async function downloadTafsir(tafsirId: number, surah: number): Promise<void> {
+  await loadChapterTafsir(tafsirId, surah);
+  const list = offlineList();
+  if (!list.includes(`${tafsirId}:${surah}`)) saveJSON(OFFLINE_KEY, [...list, `${tafsirId}:${surah}`]);
+}
+
+// ---------- word meanings (Quran.com word-by-word) ----------
+
+export interface WordMeaning {
+  text: string;
+  translation: string;
+  transliteration: string;
+  /** URL of the recording of this single word, when Quran.com has one. */
+  audio: string | null;
+}
+
+const meaningMemory = new Map<number, WordMeaning[][]>();
+
+/** Meaning and transliteration of every word of a surah. Index 0 = ayah 1, then word by word. */
+export async function fetchWordMeanings(surah: number): Promise<WordMeaning[][]> {
+  const hit = meaningMemory.get(surah);
+  if (hit) return hit;
+  const url = `https://api.quran.com/api/v4/verses/by_chapter/${surah}?words=true&word_fields=text_uthmani&per_page=300&language=en`;
+  const json = await cachedJson<{ verses: { verse_number: number; words: { char_type_name: string; text: string; text_uthmani?: string; translation?: { text: string }; transliteration?: { text: string }; audio_url?: string | null }[] }[] }>(url);
+  const out: WordMeaning[][] = [];
+  for (const v of json.verses) {
+    out[v.verse_number - 1] = v.words
+      .filter(w => w.char_type_name === 'word')
+      .map(w => ({
+        text: w.text_uthmani ?? w.text,
+        translation: w.translation?.text ?? '',
+        transliteration: w.transliteration?.text ?? '',
+        audio: w.audio_url ? `https://audio.qurancdn.com/${w.audio_url}` : null,
+      }));
+  }
+  meaningMemory.set(surah, out);
+  return out;
 }
 
 const AR_DIACRITICS = /[ً-ٰٟۖ-ۭـ]/g;
@@ -184,4 +326,15 @@ export async function fetchWordSegments(reciter: string, surah: number): Promise
   for (const f of audio_files) map.set(Number(f.verse_key.split(':')[1]), normalizeSegments(f.segments));
   segmentsMemory.set(key, map);
   return map;
+}
+
+/** Average size of one ayah's MP3 at 128 kbps (measured over the whole Quran: about 1.6 GB for 6,236 ayahs). */
+const AYAH_BYTES_128 = 267 * 1024;
+
+/** Rough size of downloading `ayahs` ayahs (of a whole-surah reciter: the same share of its measured total). */
+export function estimateReciterBytes(reciterId: string, ayahs: number): number {
+  const surahReciter = SURAH_RECITERS.find(r => `surah:${r.key}` === reciterId);
+  if (surahReciter) return Math.round((surahReciter.mb * 1048576 * ayahs) / 6236);
+  const kbps = Number(/(\d+)kbps/i.exec(reciterId)?.[1] ?? 128);
+  return Math.round(ayahs * AYAH_BYTES_128 * (kbps / 128));
 }

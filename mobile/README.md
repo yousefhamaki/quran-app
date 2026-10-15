@@ -6,7 +6,7 @@ It is shipped as **standalone native builds** (`.apk` / `.ipa`) that you can sha
 
 ## Features
 
-Tap-to-play with your saved reciter · play a whole surah · continuous play + auto-next surah · repeat each ayah N times · pause between ayahs ("your turn") · sleep timer · memorize mode · repeat a range · memorization plan (spaced repetition) · word-by-word highlight + tajweed colours · tafsir (4 sources) · surah + full-text search · bookmarks and "continue reading" · offline downloads (text + audio) with an "Available offline" section · background audio with lock-screen controls · light/dark/system theme · optional account sync with `../backend`.
+Tap-to-play with your saved reciter · play a whole surah · continuous play + auto-next surah · repeat each ayah N times · pause between ayahs ("your turn") · sleep timer · memorize mode · download queue (several surahs or a juz) · 65 reciter options (incl. 28 whole-surah recitations with continuous flow) · download the whole Quran · prayer times, Qibla compass and adhan notifications · Hijri calendar with Ramadan mode · adhkar and duas · khatmah planner · reading streak · daily ayah reminder notification · home-screen widget (Android; iOS via expo-widgets) · repeat a range · memorization plan (spaced repetition) · word-by-word highlight + tajweed colours · tafsir (4 sources) · surah + full-text search · bookmarks and "continue reading" · offline downloads (text + audio) with an "Available offline" section · background audio with lock-screen controls · light/dark/system theme · optional account sync with `../backend`.
 
 ## Structure
 

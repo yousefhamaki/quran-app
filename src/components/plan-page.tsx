@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { CalendarDays, CheckCircle2, GraduationCap, Repeat, Trash2 } from 'lucide-react';
+import { CalendarDays, CheckCircle2, ClipboardCheck, GraduationCap, Repeat, Trash2 } from 'lucide-react';
+import { SelfTestSheet } from '@/components/self-test-sheet';
+import { weekCalendar } from '@/lib/study';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -15,6 +17,7 @@ import { cn } from '@/lib/utils';
 import { addDays } from '@/lib/hifz';
 import type { Surah } from '@/lib/quran';
 import { useHifz } from '@/context/hifz';
+import { useHabit } from '@/context/habit';
 import { useSettings } from '@/context/settings';
 
 const PACES = [1, 2, 3, 5, 10];
@@ -31,7 +34,10 @@ function rangeLabel(from: number, to: number) {
 
 export function PlanPage({ surahs, onPractice }: Props) {
   const { settings, t } = useSettings();
-  const { plan, today, learn, due, stats, coming, create, markLearned, rate, remove } = useHifz();
+  const { plan, today, learn, due, stats, coming, create, markLearned: learned, rate: rateCard, remove } = useHifz();
+  const { recordRead } = useHabit();
+  const markLearned = () => { learned(); recordRead(); };
+  const rate: typeof rateCard = (id, rating) => { rateCard(id, rating); recordRead(); };
   const ar = settings.lang === 'ar';
   const nameOf = (n: number) => { const s = surahs.find(x => x.number === n); return s ? (ar ? s.name : s.englishName) : `#${n}`; };
 
@@ -40,6 +46,13 @@ export function PlanPage({ surahs, onPractice }: Props) {
   const [startAyah, setStartAyah] = useState(1);
   const [pace, setPace] = useState(3);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [testOpen, setTestOpen] = useState(false);
+  const testButton = (
+    <Button variant="outline" className="h-12 w-full gap-2 rounded-xl" onClick={() => setTestOpen(true)}>
+      <ClipboardCheck className="size-5" aria-hidden /> {t('testTitle')}
+    </Button>
+  );
+  const testRange = plan ? { surah: plan.surah, from: plan.start, to: Math.max(plan.start + 1, Math.min(plan.total, plan.nextAyah - 1)) } : undefined;
   const chosen = surahs.find(s => s.number === surahNo);
 
   if (!plan || !stats) {
@@ -97,6 +110,8 @@ export function PlanPage({ surahs, onPractice }: Props) {
             {t('planCreate')}
           </Button>
         </Card>
+        {testButton}
+        <SelfTestSheet open={testOpen} onOpenChange={setTestOpen} surahs={surahs} />
       </div>
     );
   }
@@ -177,6 +192,32 @@ export function PlanPage({ surahs, onPractice }: Props) {
           </ul>
         )}
       </section>
+
+      {/* This week */}
+      <section className="space-y-2" aria-labelledby="week-heading">
+        <h2 id="week-heading" className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+          <CalendarDays className="size-4" aria-hidden /> {t('planWeek')}
+        </h2>
+        <ol className="grid grid-cols-7 gap-1.5">
+          {weekCalendar(plan.cards, today, addDays).map(d => {
+            const date = new Date(`${d.day}T00:00:00`);
+            return (
+              <li
+                key={d.day}
+                aria-label={`${date.toLocaleDateString(ar ? 'ar' : 'en', { weekday: 'long', day: 'numeric', month: 'long' })}: ${t('planWeekCount', { n: d.count })}`}
+                className={cn('flex flex-col items-center gap-1 rounded-2xl border px-1 py-2', d.isToday && 'border-primary bg-secondary')}
+              >
+                <span className="text-[11px] text-muted-foreground">{date.toLocaleDateString(ar ? 'ar' : 'en', { weekday: 'short' })}</span>
+                <span className="text-sm font-medium tabular-nums">{date.getDate().toLocaleString(ar ? 'ar-EG' : 'en')}</span>
+                <span className={cn('grid size-7 place-items-center rounded-full text-xs font-semibold tabular-nums', d.count > 0 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>{d.count.toLocaleString(ar ? 'ar-EG' : 'en')}</span>
+              </li>
+            );
+          })}
+        </ol>
+      </section>
+
+      {testButton}
+      <SelfTestSheet open={testOpen} onOpenChange={setTestOpen} surahs={surahs} initial={testRange} />
 
       {/* Coming up */}
       {coming.length > 0 && (

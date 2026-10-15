@@ -1,15 +1,18 @@
-import { View } from 'react-native';
-import { AppSlider } from '@/components/app-slider';
+import { useEffect, useState } from 'react';
+import { Pressable, View } from 'react-native';
+import { usePathname } from 'expo-router';
+import { ChevronDown } from 'lucide-react-native';
+import { MushafSettingsSheet } from '@/components/sheets/mushaf-settings-sheet';
+import { Icon } from '@/components/ui/icon';
+import { ReciterList } from '@/components/reciter-list';
 import { Chips } from '@/components/chips';
 import { AutoNextSurahControl, ContinuousControl, GapControl, RepeatControl, SleepControl, SwitchRow } from '@/components/controls';
 import { DownloadsList } from '@/components/downloads-list';
 import { useOrderedReciters } from '@/components/reciter-list';
 import { Field, Section } from '@/components/section';
-import { TajweedLegend } from '@/components/tajweed-legend';
 import { Sheet } from '@/components/sheet';
 import { Separator } from '@/components/ui/separator';
 import { Text } from '@/components/ui/text';
-import { TAFSIRS } from '@/lib/quran';
 import type { Lang } from '@/lib/i18n';
 import { useSettings, type ThemeMode } from '@/context/settings';
 import { useUI } from '@/context/ui';
@@ -18,8 +21,9 @@ const SPEEDS = [0.75, 1, 1.25, 1.5];
 
 export function SettingsSheet() {
   const { settingsOpen, setSettingsOpen } = useUI();
-  const { settings, update, theme, setTheme, memorize, setMemorize, tajweed, setTajweed, wordHighlight, setWordHighlight, t, isRTL } = useSettings();
+  const { settings, update, theme, setTheme, t, isRTL } = useSettings();
   const { pinned, others } = useOrderedReciters();
+  const [pickingReciter, setPickingReciter] = useState(false);
 
   return (
     <Sheet open={settingsOpen} tall onClose={() => setSettingsOpen(false)} title={t('settings')}>
@@ -51,45 +55,17 @@ export function SettingsSheet() {
 
       <Separator />
 
-      <Section title={t('reading')}>
-        <Field label={t('textSize')} value={`${settings.fontSize}`}>
-          <AppSlider label={t('textSize')} value={settings.fontSize} min={20} max={52} step={2} onChange={v => update({ fontSize: v })} />
-          <View className="rounded-xl bg-muted px-4 py-3">
-            <Text
-              className="font-quran text-center"
-              style={{ fontSize: settings.fontSize, lineHeight: settings.fontSize * 1.25, paddingVertical: settings.fontSize * 0.3, writingDirection: 'rtl' }}
-            >
-              بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ
-            </Text>
-          </View>
-        </Field>
-        <SwitchRow label={t('showTranslation')} checked={settings.showTranslation} onChange={v => update({ showTranslation: v })} />
-        <SwitchRow label={t('memorize')} hint={t('memorizeHint')} checked={memorize} onChange={setMemorize} />
-        <SwitchRow label={t('wordHighlight')} hint={t('wordHighlightHint')} checked={wordHighlight} onChange={setWordHighlight} />
-        <View className="gap-1">
-          <SwitchRow label={t('tajweedColours')} hint={t('tajweedHint')} checked={tajweed} onChange={setTajweed} />
-          <TajweedLegend />
-        </View>
-        <Field label={t('defaultTafsir')}>
-          <Chips
-            label={t('defaultTafsir')}
-            value={settings.tafsirId}
-            onChange={id => update({ tafsirId: id })}
-            options={TAFSIRS.map(x => ({ value: x.id, label: isRTL ? x.ar : x.en }))}
-          />
-        </Field>
-      </Section>
-
-      <Separator />
-
       <Section title={t('audio')}>
         <Field label={t('defaultReciter')}>
-          <Chips
-            label={t('defaultReciter')}
-            value={settings.reciter}
-            onChange={reciter => update({ reciter })}
-            options={[...pinned, ...others].map(r => ({ value: r.id, label: isRTL ? r.ar : r.en }))}
-          />
+          <Pressable
+            onPress={() => setPickingReciter(true)}
+            accessibilityRole="button"
+            accessibilityLabel={t('defaultReciter')}
+            className="h-12 flex-row items-center justify-between rounded-xl border border-input bg-background px-4 active:bg-accent"
+          >
+            <Text numberOfLines={1} className="flex-1">{(() => { const r = [...pinned, ...others].find(x => x.id === settings.reciter); return r ? (isRTL ? r.ar : r.en) : settings.reciter; })()}</Text>
+            <Icon as={ChevronDown} className="size-4 text-muted-foreground" />
+          </Pressable>
         </Field>
         <Field label={t('speed')}>
           <Chips label={t('speed')} value={settings.speed} onChange={speed => update({ speed })} options={SPEEDS.map(v => ({ value: v, label: `${v}x` }))} />
@@ -106,6 +82,21 @@ export function SettingsSheet() {
       <Section title={t('offlineSection')}>
         <DownloadsList />
       </Section>
+      <Sheet open={pickingReciter} tall onClose={() => setPickingReciter(false)} title={t('defaultReciter')}>
+        <ReciterList value={settings.reciter} onChange={reciter => { update({ reciter }); setPickingReciter(false); }} />
+      </Sheet>
     </Sheet>
   );
+}
+
+/**
+ * Settings depend on the screen: in the reader the gear opens the Mushaf settings (text, mushaf view, reading options);
+ * everywhere else it opens the general settings. The Mushaf sheet has a button to reach the general ones.
+ */
+export function SettingsSheets() {
+  const { settingsOpen, settingsScope, setSettingsScope } = useUI();
+  const pathname = usePathname();
+  useEffect(() => { if (!settingsOpen) setSettingsScope('auto'); }, [settingsOpen, setSettingsScope]);
+  const mushaf = settingsScope === 'mushaf' || (settingsScope === 'auto' && pathname.startsWith('/surah'));
+  return mushaf ? <MushafSettingsSheet onOpenGeneral={() => setSettingsScope('general')} /> : <SettingsSheet />;
 }

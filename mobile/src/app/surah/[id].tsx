@@ -8,10 +8,11 @@ import { Icon } from '@/components/ui/icon';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Text } from '@/components/ui/text';
 import { cn } from '@/lib/utils';
-import { normalize, type Ayah } from '@/lib/quran';
+import { normalize, translationDir, type Ayah } from '@/lib/quran';
 import { useAyahs } from '@/hooks/use-ayahs';
 import { useSurahWords } from '@/hooks/use-surah-words';
 import { AyahWords } from '@/components/ayah-words';
+import { MushafView } from '@/components/mushaf-view';
 import { useDownloads } from '@/context/downloads';
 import { useLibrary } from '@/context/library';
 import { usePlayer } from '@/context/player';
@@ -50,7 +51,7 @@ export default function Reader() {
   const router = useRouter();
   const { id, ayah: ayahParam } = useLocalSearchParams<{ id: string; ayah?: string }>();
   const surahNumber = Number(id);
-  const { settings, memorize, setMemorize, tajweed, wordHighlight, t, isRTL } = useSettings();
+  const { settings, mushaf, memorize, setMemorize, tajweed, wordHighlight, t, isRTL } = useSettings();
   const { byNumber, status: surahsStatus } = useSurahs();
   const { isBookmarked, markRead } = useLibrary();
   const { playing, play, toggle, range } = usePlayer();
@@ -58,7 +59,7 @@ export default function Reader() {
   const { setOptions, setTafsir, setDownload, setRangeFor } = useUI();
   const { status, ayahs, retry } = useAyahs(Number.isFinite(surahNumber) ? surahNumber : null);
   // Word-level text (tajweed colours / word highlight); falls back to the plain text while loading or offline.
-  const surahWords = useSurahWords(surahNumber, tajweed || wordHighlight, settings.reciter);
+  const surahWords = useSurahWords(surahNumber, true, settings.reciter);
   const surah = byNumber(surahNumber);
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/'));
   const list = useRef<FlatList<Ayah>>(null);
@@ -152,7 +153,15 @@ export default function Reader() {
         onBack={goBack}
       />
 
-      {status === 'loading' && (
+      {mushaf.view !== 'list' && (
+        <MushafView
+          surah={surahNumber}
+          ayah={Number(ayahParam) || 1}
+          onNavigate={(s, a) => router.setParams({ id: String(s), ayah: String(a) })}
+        />
+      )}
+
+      {mushaf.view === 'list' && status === 'loading' && (
         <View className="gap-6 p-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <View key={i} className="gap-3">
@@ -163,7 +172,7 @@ export default function Reader() {
         </View>
       )}
 
-      {status === 'error' && (
+      {mushaf.view === 'list' && status === 'error' && (
         <View className="m-4 items-center gap-4 rounded-2xl border border-dashed border-border p-8">
           <Text className="text-center text-muted-foreground">{t('error')}</Text>
           <Button onPress={retry}>
@@ -172,7 +181,7 @@ export default function Reader() {
         </View>
       )}
 
-      {status === 'ok' && (
+      {mushaf.view === 'list' && status === 'ok' && (
         <FlatList
           ref={list}
           data={ayahs}
@@ -225,7 +234,7 @@ export default function Reader() {
                     </View>
                   )}
                   {settings.showTranslation && (
-                    <Text className="mt-2 text-[15px] text-muted-foreground" style={{ lineHeight: 23, textAlign: 'left', writingDirection: 'ltr' }}>
+                    <Text className="mt-2 text-[15px] text-muted-foreground" style={{ lineHeight: 23, textAlign: translationDir(settings.translation) === 'rtl' ? 'right' : 'left', writingDirection: translationDir(settings.translation) }}>
                       {a.en}
                     </Text>
                   )}

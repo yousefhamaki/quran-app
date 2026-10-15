@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { audioUrl } from '@/lib/quran';
+import { AYAH_FALLBACK_RECITER, audioUrl, isSurahReciter } from '@/lib/quran';
 import { isDownloaded, isOnline, offlineAudioUrl, resolveNextSurah } from '@/lib/offline';
 import { useSettings } from '@/context/settings';
 import { useLibrary } from '@/context/library';
@@ -22,7 +22,7 @@ export interface Playing {
 }
 
 interface PlayerContextValue {
-  /** The ayah the player is loaded with (null = player closed). */
+  /** The ayah the player is loaded with (null = player closed). `ayah` is 0 while a whole-surah recitation plays. */
   playing: Playing | null;
   /** True while audio is actually playing; false when paused or finished. */
   isPlaying: boolean;
@@ -113,6 +113,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const el = audio.current;
       if (!el) return;
       if (!keepRange && rangeRef.current) { rangeRef.current = null; setRange(null); }
+      // Looping a range needs ayah-level audio: use a regular reciter when the chosen one plays whole surahs.
+      if (isSurahReciter(reciter) && rangeRef.current) reciter = AYAH_FALLBACK_RECITER;
+      const wholeSurah = isSurahReciter(reciter);
       setFailed(false);
       passRef.current = 1;
       setPass(1);
@@ -137,8 +140,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           begin(local ?? network);
         });
       } else begin(network);
-      setPlaying({ surah, ayah, reciter });
-      markRead(surah, ayah);
+      setPlaying({ surah, ayah: wholeSurah ? 0 : ayah, reciter });
+      markRead(surah, wholeSurah ? 1 : ayah);
     },
     [settings.reciter, markRead],
   );
@@ -160,21 +163,34 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setDuration(0);
   }, []);
 
+  /** Whole-surah mode: jump to another surah and let the reader follow. */
+  const goToSurah = useCallback((surah: number, reciter: string) => {
+    if (surah < 1 || surah > 114) return;
+    playRef.current(surah, 1, reciter);
+    setAutoSurah(prev => ({ surah, n: (prev?.n ?? 0) + 1 }));
+  }, []);
+
   const next = useCallback(() => {
     const p = live.current.playing;
+    if (p && p.ayah === 0) { goToSurah(p.surah + 1, p.reciter); return; }
     const limit = rangeRef.current ? rangeRef.current.to : surahLength.current;
     if (p && p.ayah < limit) playRef.current(p.surah, p.ayah + 1, p.reciter, true);
-  }, []);
+  }, [goToSurah]);
 
   const previous = useCallback(() => {
     const p = live.current.playing;
     const el = audio.current;
     if (!p || !el) return;
     setGapLeft(null);
+    if (p.ayah === 0) {
+      if (el.currentTime > 3 || p.surah <= 1) { el.currentTime = 0; void el.play().catch(() => {}); }
+      else goToSurah(p.surah - 1, p.reciter);
+      return;
+    }
     // Like most players: past the first seconds, "previous" restarts the current ayah.
     if (el.currentTime > 3 || p.ayah <= 1) { el.currentTime = 0; void el.play().catch(() => {}); }
     else playRef.current(p.surah, p.ayah - 1, p.reciter, true);
-  }, []);
+  }, [goToSurah]);
 
   const toggle = useCallback(() => {
     const el = audio.current;
@@ -195,7 +211,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const changeReciter = useCallback((reciter: string) => {
     const p = live.current.playing;
-    if (p) playRef.current(p.surah, p.ayah, reciter, true);
+    if (p) playRef.current(p.surah, p.ayah || 1, reciter, true);
   }, []);
 
 
@@ -212,6 +228,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     };
     const onEnded = () => {
       const { repeatTimes: times, continuous, playing: p } = live.current;
+      if (p && p.ayah === 0) {
+        // A whole surah finished: roll straight into the next one (continuous flow), unless a sleep timer says stop.
+        if (sleepRef.current?.kind === 'surah') stopRef.current();
+        else if (continuous && resolveNextSurah(p.surah, p.reciter, isOnline()) !== null) runAction('nextSurah');
+        else setIsPlaying(false);
+        return;
+      }
       // times: 1 = once, N = N plays in total, 0 = forever.
       const loop = rangeRef.current;
       if (times === 0 || passRef.current < times) schedule('repeat');

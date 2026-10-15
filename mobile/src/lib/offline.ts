@@ -63,7 +63,8 @@ export async function cachedJson<T>(url: string): Promise<T> {
 
 // ---------- audio downloads ----------
 
-const audioDir = (reciter: string, surah: number) => `${ROOT}quran-audio/${reciter}/${surah}/`;
+// Whole-surah reciter ids contain a colon ("surah:maher-muaiqly"), which does not belong in a folder name.
+const audioDir = (reciter: string, surah: number) => `${ROOT}quran-audio/${reciter.replace(/[^\w.-]/g, '_')}/${surah}/`;
 export const audioFile = (reciter: string, surah: number, ayah: number) => `${audioDir(reciter, surah)}${ayah}.mp3`;
 
 /** file:// URI of a saved ayah, or null when the surah isn't downloaded for this reciter. */
@@ -152,9 +153,14 @@ export function resolveNextSurah(current: number, reciter: string, online: boole
 }
 
 export function formatBytes(bytes: number) {
-  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-  if (bytes < 1024 ** 3) return `${(bytes / 1024 / 1024).toFixed(bytes < 10 * 1024 * 1024 ? 1 : 0)} MB`;
-  return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
+  const text =
+    bytes < 1024 * 1024
+      ? `${Math.max(1, Math.round(bytes / 1024))} KB`
+      : bytes < 1024 ** 3
+        ? `${(bytes / 1024 / 1024).toFixed(bytes < 10 * 1024 * 1024 ? 1 : 0)} MB`
+        : `${(bytes / 1024 ** 3).toFixed(1)} GB`;
+  // Keep "1.6 GB" in this order inside right-to-left (Arabic) text.
+  return `⁦${text}⁩`;
 }
 
 /** Rough size before downloading (≈ 125 KB per ayah at 128 kbps). */

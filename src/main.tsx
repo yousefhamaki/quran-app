@@ -8,6 +8,8 @@ import { PlayerProvider } from '@/context/player';
 import { AuthProvider } from '@/context/auth';
 import { DownloadsProvider } from '@/context/downloads';
 import { HifzProvider } from '@/context/hifz';
+import { HabitProvider } from '@/context/habit';
+import { PrayerProvider } from '@/context/prayer';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/sonner';
 import './index.css';
@@ -21,10 +23,14 @@ createRoot(document.getElementById('root')!).render(
             <DownloadsProvider>
               <PlayerProvider>
                 <HifzProvider>
-                  <TooltipProvider delayDuration={300}>
-                    <App />
-                    <Toaster position="top-center" />
-                  </TooltipProvider>
+                  <HabitProvider>
+                    <PrayerProvider>
+                      <TooltipProvider delayDuration={300}>
+                        <App />
+                        <Toaster position="top-center" />
+                      </TooltipProvider>
+                    </PrayerProvider>
+                  </HabitProvider>
                 </HifzProvider>
               </PlayerProvider>
             </DownloadsProvider>

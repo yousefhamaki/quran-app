@@ -1,3 +1,4 @@
+import { loadJSON } from '@/lib/storage';
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 
 interface Target {
@@ -5,8 +6,23 @@ interface Target {
   ayah: number;
 }
 
+export interface WordTarget {
+  surah: number;
+  ayah: number;
+  index: number;
+}
+
+export type SettingsScope = 'auto' | 'mushaf' | 'general';
+
 interface UIContextValue {
   settingsOpen: boolean;
+  /** Word whose meaning sheet is open. */
+  word: WordTarget | null;
+  setWord: (w: WordTarget | null) => void;
+  /** Which settings the gear opens: by screen (auto), or forced by the More screen. */
+  settingsScope: SettingsScope;
+  /** First-run setup sheet. */
+  setupOpen: boolean;
   accountOpen: boolean;
   playerOpen: boolean;
   /** Ayah whose reciter/bookmark sheet is open. */
@@ -19,6 +35,8 @@ interface UIContextValue {
   rangeFor: number | null;
   rangeFrom: number | null;
   setSettingsOpen: (open: boolean) => void;
+  setSettingsScope: (scope: SettingsScope) => void;
+  setSetupOpen: (open: boolean) => void;
   setAccountOpen: (open: boolean) => void;
   setPlayerOpen: (open: boolean) => void;
   setOptions: (target: Target | null) => void;
@@ -32,6 +50,9 @@ const UIContext = createContext<UIContextValue | null>(null);
 /** Which sheet is open. Sheets are rendered once at the root so any screen can open them. */
 export function UIProvider({ children }: { children: ReactNode }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsScope, setSettingsScope] = useState<SettingsScope>('auto');
+  const [setupOpen, setSetupOpen] = useState(() => loadJSON<boolean>('quran.onboarded', false) !== true);
+  const [word, setWord] = useState<WordTarget | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
   const [playerOpen, setPlayerOpen] = useState(false);
   const [options, setOptionsState] = useState<Target | null>(null);
@@ -46,8 +67,8 @@ export function UIProvider({ children }: { children: ReactNode }) {
   const setRangeFor = useCallback((s: number | null, from?: number) => { setRangeForState(s); setRangeFromState(from ?? null); }, []);
 
   const value = useMemo(
-    () => ({ settingsOpen, accountOpen, playerOpen, options, tafsir, download, rangeFor, rangeFrom, setSettingsOpen, setAccountOpen, setPlayerOpen, setOptions, setTafsir, setDownload, setRangeFor }),
-    [settingsOpen, accountOpen, playerOpen, options, tafsir, download, rangeFor, rangeFrom, setOptions, setTafsir, setDownload, setRangeFor],
+    () => ({ settingsOpen, word, setWord, settingsScope, setupOpen, setSettingsScope, setSetupOpen, accountOpen, playerOpen, options, tafsir, download, rangeFor, rangeFrom, setSettingsOpen, setAccountOpen, setPlayerOpen, setOptions, setTafsir, setDownload, setRangeFor }),
+    [settingsOpen, word, settingsScope, setupOpen, accountOpen, playerOpen, options, tafsir, download, rangeFor, rangeFrom, setOptions, setTafsir, setDownload, setRangeFor],
   );
   return <UIContext.Provider value={value}>{children}</UIContext.Provider>;
 }

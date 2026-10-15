@@ -4,7 +4,7 @@
     "slug": "quran-app",
     "scheme": "quranapp",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -35,7 +35,8 @@
       "permissions": [
         "FOREGROUND_SERVICE",
         "FOREGROUND_SERVICE_MEDIA_PLAYBACK",
-        "WAKE_LOCK"
+        "WAKE_LOCK",
+        "SCHEDULE_EXACT_ALARM"
       ]
     },
     "web": {
@@ -59,7 +60,62 @@
           "enableBackgroundPlayback": true
         }
       ],
-      "expo-status-bar"
+      "expo-status-bar",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/android-icon-monochrome.png",
+          "color": "#0b5d4b",
+          "defaultChannel": "daily-ayah",
+          "sounds": [
+            "./assets/sounds/adhan.wav"
+          ]
+        }
+      ],
+      [
+        "expo-widgets",
+        {
+          "widgets": [
+            {
+              "name": "AyahOfDay",
+              "displayName": "Ayah of the day",
+              "description": "A new ayah every day",
+              "ios": {
+                "supportedFamilies": [
+                  "systemSmall",
+                  "systemMedium"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      [
+        "react-native-android-widget",
+        {
+          "widgets": [
+            {
+              "name": "AyahOfDay",
+              "label": "Ayah of the day",
+              "description": "A new ayah every day",
+              "minWidth": "250dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 2,
+              "resizeMode": "horizontal|vertical",
+              "updatePeriodMillis": 1800000
+            }
+          ]
+        }
+      ],
+      "./plugins/with-work-runtime-fix",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Your location is used only on your phone to calculate prayer times and the Qibla direction."
+        }
+      ],
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": false

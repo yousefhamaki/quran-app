@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Trash2 } from 'lucide-react';
+import { ArrowDownToLine, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { QueueSheet } from '@/components/queue-sheet';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,6 +22,7 @@ export function DownloadsList({ surahs }: { surahs: Surah[] }) {
   const { records, remove } = useDownloads();
   const { settings, t } = useSettings();
   const [confirmAll, setConfirmAll] = useState(false);
+  const [queueOpen, setQueueOpen] = useState(false);
   const ar = settings.lang === 'ar';
   const total = records.reduce((sum, d) => sum + d.bytes, 0);
   const sorted = [...records].sort((a, b) => a.surah - b.surah);
@@ -30,10 +32,27 @@ export function DownloadsList({ surahs }: { surahs: Surah[] }) {
     setConfirmAll(false);
   };
 
-  if (records.length === 0) return <p className="text-sm text-muted-foreground">{t('offlineEmpty')}</p>;
+  const queueButton = (
+    <>
+      <Button variant="outline" className="h-11 w-full gap-2 rounded-xl" onClick={() => setQueueOpen(true)}>
+        <ArrowDownToLine className="size-4" aria-hidden /> {t('queueOpen')}
+      </Button>
+      <QueueSheet surahs={surahs} open={queueOpen} onOpenChange={setQueueOpen} />
+    </>
+  );
+
+  if (records.length === 0) {
+    return (
+      <div className="space-y-3">
+        <p className="text-sm text-muted-foreground">{t('offlineEmpty')}</p>
+        {queueButton}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-3">
+      {queueButton}
       <ul className="space-y-1">
         {sorted.map(d => {
           const s = surahs.find(x => x.number === d.surah);

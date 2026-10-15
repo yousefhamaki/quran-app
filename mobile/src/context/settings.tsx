@@ -1,8 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Uniwind } from 'uniwind';
 import { dictionaries, type Lang, type TKey } from '@/lib/i18n';
-import { RECITERS, TAFSIRS, migrateReciterId, normalizeReciterId } from '@/lib/quran';
+import { RECITERS, TAFSIRS, migrateReciterId, normalizeReciterId, setTranslationEdition } from '@/lib/quran';
 import { loadJSON, saveJSON } from '@/lib/storage';
+import { DEFAULT_MUSHAF, normalizeMushaf, type MushafPrefs } from '@/lib/mushaf-prefs';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
 
@@ -13,6 +14,8 @@ export interface Settings {
   speed: number;
   fontSize: number;
   showTranslation: boolean;
+  /** AlQuran Cloud translation edition shown under each ayah. */
+  translation: string;
   continuous: boolean;
 }
 
@@ -23,6 +26,7 @@ export const DEFAULT_SETTINGS: Settings = {
   speed: 1,
   fontSize: 30,
   showTranslation: true,
+  translation: 'en.sahih',
   continuous: true,
 };
 
@@ -55,6 +59,9 @@ interface SettingsContextValue {
   setWordHighlight: (on: boolean) => void;
   theme: ThemeMode;
   setTheme: (mode: ThemeMode) => void;
+  /** How the Quran is shown (list or mushaf pages) and the mushaf look. Local to this device. */
+  mushaf: MushafPrefs;
+  setMushaf: (patch: Partial<MushafPrefs>) => void;
   t: (key: TKey, vars?: Record<string, string | number>) => string;
 }
 
@@ -74,6 +81,7 @@ function useStored<T>(key: string, fallback: T, valid: (v: unknown) => boolean =
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<Settings>(() => {
     const stored = { ...DEFAULT_SETTINGS, ...loadJSON<Partial<Settings>>(KEY, {}) };
+    setTranslationEdition(stored.translation);
     return { ...stored, reciter: normalizeReciterId(stored.reciter) };
   });
   const [pinned, setPinnedState] = useState<string[]>(() => [...new Set(loadJSON<string[]>('quran.pinnedReciters', []).map(migrateReciterId))].filter(id => RECITERS.some(r => r.id === id)));
@@ -88,6 +96,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   useEffect(() => saveJSON(KEY, settings), [settings]);
   useEffect(() => { Uniwind.setTheme(theme); }, [theme]);
 
+  const [mushaf, setMushafState] = useState<MushafPrefs>(() => normalizeMushaf(loadJSON<Partial<MushafPrefs>>('quran.mushaf', DEFAULT_MUSHAF)));
+  const setMushaf = useCallback((patch: Partial<MushafPrefs>) => setMushafState(m => { const next = normalizeMushaf({ ...m, ...patch }); saveJSON('quran.mushaf', next); return next; }), []);
   const togglePin = useCallback((id: string) => {
     setPinnedState(p => {
       const next = p.includes(id) ? p.filter(x => x !== id) : [...p, id];
@@ -96,7 +106,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const update = useCallback((patch: Partial<Settings>) => setSettings(s => ({ ...s, ...patch })), []);
+  const update = useCallback((patch: Partial<Settings>) => { if (patch.translation) setTranslationEdition(patch.translation); setSettings(s => ({ ...s, ...patch })); }, []);
   const replace = useCallback((next: Settings) => setSettings({ ...DEFAULT_SETTINGS, ...next }), []);
 
   const t = useCallback<SettingsContextValue['t']>(
@@ -111,9 +121,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       settings, isRTL: settings.lang === 'ar', update, replace, pinned, togglePin, gapSeconds, setGapSeconds, repeatTimes, setRepeatTimes,
-      memorize, setMemorize, autoNextSurah, setAutoNextSurah, tajweed, setTajweed, wordHighlight, setWordHighlight, theme, setTheme: setThemeState, t,
+      memorize, setMemorize, autoNextSurah, setAutoNextSurah, tajweed, setTajweed, wordHighlight, setWordHighlight, mushaf, setMushaf, theme, setTheme: setThemeState, t,
     }),
-    [settings, update, replace, pinned, togglePin, gapSeconds, setGapSeconds, repeatTimes, setRepeatTimes, memorize, setMemorize, autoNextSurah, setAutoNextSurah, tajweed, setTajweed, wordHighlight, setWordHighlight, theme, setThemeState, t],
+    [settings, update, replace, pinned, togglePin, gapSeconds, setGapSeconds, repeatTimes, setRepeatTimes, memorize, setMemorize, autoNextSurah, setAutoNextSurah, tajweed, setTajweed, wordHighlight, setWordHighlight, mushaf, setMushaf, theme, setThemeState, t],
   );
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
 }

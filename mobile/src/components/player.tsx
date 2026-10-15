@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AlertCircle, BookOpenText, ChevronUp, Pause, Play, SkipBack, SkipForward, X } from 'lucide-react-native';
+import { NAV_HEIGHT } from '@/components/bottom-nav';
+import { AlertCircle, BookOpenText, ChevronDown, ChevronUp, Pause, Play, SkipBack, SkipForward, X } from 'lucide-react-native';
 import { AppSlider } from '@/components/app-slider';
 import { Chips } from '@/components/chips';
 import { AutoNextSurahControl, ContinuousControl, GapControl, RepeatControl, SleepControl, formatCountdown } from '@/components/controls';
-import { useOrderedReciters } from '@/components/reciter-list';
+import { ReciterList, useOrderedReciters } from '@/components/reciter-list';
 import { Field } from '@/components/section';
 import { Sheet } from '@/components/sheet';
 import { Button } from '@/components/ui/button';
@@ -43,7 +44,7 @@ function PlayPause({ big }: { big?: boolean }) {
 }
 
 /** Floating mini player; tap it for the full controls. */
-export function PlayerBar() {
+export function PlayerBar({ lifted = false }: { /** Float above the bottom navigation. */ lifted?: boolean }) {
   const insets = useSafeAreaInsets();
   const { settings, repeatTimes, t, isRTL } = useSettings();
   const { byNumber } = useSurahs();
@@ -55,7 +56,7 @@ export function PlayerBar() {
   const reciter = RECITERS.find(r => r.id === playing.reciter);
   const inGap = gapLeft !== null;
   const pct = inGap ? (gapTotal > 0 ? (gapLeft / gapTotal) * 100 : 0) : duration > 0 ? Math.min(100, (time / duration) * 100) : 0;
-  const atEnd = surah ? playing.ayah >= surah.numberOfAyahs : false;
+  const atEnd = playing.ayah === 0 ? playing.surah >= 114 : surah ? playing.ayah >= surah.numberOfAyahs : false;
   const repeatLabel = repeatTimes === 1 ? '' : ` · ${repeatTimes === 0 ? t('repeatPassForever', { i: pass }) : t('repeatPass', { i: pass, n: repeatTimes })}`;
   const sleepLabel = sleep ? `${sleep.kind === 'surah' ? t('sleepEndOfSurah') : t('sleepLeft', { time: formatCountdown(sleepLeft ?? 0) })} · ` : '';
   const subtitle = failed
@@ -65,7 +66,7 @@ export function PlayerBar() {
       : `${range ? `${t('rangeInfo', { from: range.from, to: range.to })} · ${range.rounds === 0 ? t('rangeRoundForever', { i: round }) : t('rangeRound', { i: round, n: range.rounds })} · ` : ''}${sleepLabel}${reciter ? (isRTL ? reciter.ar : reciter.en) : ''}${repeatLabel}`;
 
   return (
-    <View pointerEvents="box-none" style={{ paddingBottom: Math.max(insets.bottom, 12) }} className="absolute inset-x-0 bottom-0 px-3">
+    <View pointerEvents="box-none" style={{ bottom: lifted ? NAV_HEIGHT + insets.bottom : 0, paddingBottom: lifted ? 8 : Math.max(insets.bottom, 12) }} className="absolute inset-x-0 px-3">
       <View accessibilityRole="summary" accessibilityLabel={t('nowPlaying')} className="overflow-hidden rounded-3xl border border-border bg-card shadow-lg shadow-black/20">
         <View className="h-1 w-full bg-muted">
           <View style={{ width: `${pct}%` }} className={cn('h-full', inGap ? 'bg-gold' : 'bg-primary')} />
@@ -78,7 +79,7 @@ export function PlayerBar() {
             className="flex-1 flex-row items-center gap-3 rounded-2xl p-1 active:bg-accent/50"
           >
             <View className="size-11 items-center justify-center rounded-2xl bg-primary">
-              <Text className="font-semibold text-primary-foreground">{playing.ayah}</Text>
+              <Text className="font-semibold text-primary-foreground">{playing.ayah || playing.surah}</Text>
             </View>
             <View className="flex-1">
               <Text numberOfLines={1} className="text-sm font-medium">{surah ? (settings.lang === 'ar' ? surah.name : surah.englishName) : ''}</Text>
@@ -109,11 +110,12 @@ export function PlayerSheet() {
   const { pinned, others } = useOrderedReciters();
   const { playing, time, duration, range, clearRange, stop, next, previous, seek, changeReciter } = usePlayer();
   const [scrub, setScrub] = useState<number | null>(null);
+  const [pickingReciter, setPickingReciter] = useState(false);
   if (!playing) return null;
 
   const surah = byNumber(playing.surah);
   const reciter = RECITERS.find(r => r.id === playing.reciter);
-  const atEnd = surah ? playing.ayah >= surah.numberOfAyahs : false;
+  const atEnd = playing.ayah === 0 ? playing.surah >= 114 : surah ? playing.ayah >= surah.numberOfAyahs : false;
   const shown = scrub ?? Math.min(time, duration || 0);
 
   return (
@@ -122,7 +124,7 @@ export function PlayerSheet() {
       tall
       onClose={() => setPlayerOpen(false)}
       quranTitle={isRTL}
-      title={`${surah ? (isRTL ? surah.name : surah.englishName) : ''} · ${playing.ayah}`}
+      title={`${surah ? (isRTL ? surah.name : surah.englishName) : ''}${playing.ayah > 0 ? ` · ${playing.ayah}` : ''}`}
       description={reciter ? (isRTL ? reciter.ar : reciter.en) : ''}
     >
       <View className="gap-6 pb-4 pt-2">
@@ -156,18 +158,23 @@ export function PlayerSheet() {
           </Button>
         </View>
 
-        <Button variant="secondary" className="h-12 rounded-xl" onPress={() => { setPlayerOpen(false); setTafsir({ surah: playing.surah, ayah: playing.ayah }); }}>
-          <Icon as={BookOpenText} className="size-5 text-secondary-foreground" />
-          <Text>{t('tafsir')} · {t('ayah')} {playing.ayah}</Text>
-        </Button>
+        {playing.ayah > 0 ? (
+          <Button variant="secondary" className="h-12 rounded-xl" onPress={() => { setPlayerOpen(false); setTafsir({ surah: playing.surah, ayah: playing.ayah }); }}>
+            <Icon as={BookOpenText} className="size-5 text-secondary-foreground" />
+            <Text>{t('tafsir')} · {t('ayah')} {playing.ayah}</Text>
+          </Button>
+        ) : null}
 
         <Field label={t('reciter')}>
-          <Chips
-            label={t('reciter')}
-            value={playing.reciter}
-            onChange={id => { update({ reciter: id }); changeReciter(id); }}
-            options={[...pinned, ...others].map(r => ({ value: r.id, label: isRTL ? r.ar : r.en }))}
-          />
+          <Pressable
+            onPress={() => setPickingReciter(true)}
+            accessibilityRole="button"
+            accessibilityLabel={t('reciter')}
+            className="h-12 flex-row items-center justify-between rounded-xl border border-input bg-background px-4 active:bg-accent"
+          >
+            <Text numberOfLines={1} className="flex-1">{(() => { const r = [...pinned, ...others].find(x => x.id === playing.reciter); return r ? (isRTL ? r.ar : r.en) : playing.reciter; })()}</Text>
+            <Icon as={ChevronDown} className="size-4 text-muted-foreground" />
+          </Pressable>
         </Field>
         <Field label={t('speed')}>
           <Chips label={t('speed')} value={settings.speed} onChange={speed => update({ speed })} options={SPEEDS.map(v => ({ value: v, label: `${v}x` }))} />
@@ -183,6 +190,9 @@ export function PlayerSheet() {
         <GapControl />
         <ContinuousControl />
       </View>
+      <Sheet open={pickingReciter} tall onClose={() => setPickingReciter(false)} title={t('reciter')}>
+        <ReciterList value={playing.reciter} onChange={id => { update({ reciter: id }); changeReciter(id); setPickingReciter(false); }} />
+      </Sheet>
     </Sheet>
   );
 }

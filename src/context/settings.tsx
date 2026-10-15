@@ -1,7 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { dictionaries, type Lang, type TKey } from '@/lib/i18n';
-import { RECITERS, TAFSIRS, migrateReciterId, normalizeReciterId } from '@/lib/quran';
+import { RECITERS, TAFSIRS, migrateReciterId, normalizeReciterId, setTranslationEdition } from '@/lib/quran';
 import { loadJSON, saveJSON } from '@/lib/storage';
+import { DEFAULT_MUSHAF, normalizeMushaf, type MushafPrefs } from '@/lib/mushaf-prefs';
 
 export interface Settings {
   lang: Lang;
@@ -10,6 +11,8 @@ export interface Settings {
   speed: number;
   fontSize: number;
   showTranslation: boolean;
+  /** AlQuran Cloud translation edition shown under each ayah. */
+  translation: string;
   continuous: boolean;
 }
 
@@ -20,6 +23,7 @@ export const DEFAULT_SETTINGS: Settings = {
   speed: 1,
   fontSize: 32,
   showTranslation: true,
+  translation: 'en.sahih',
   continuous: true,
 };
 
@@ -49,6 +53,9 @@ interface SettingsContextValue {
   /** Highlight the word being recited while audio plays. Local to this device. */
   wordHighlight: boolean;
   setWordHighlight: (on: boolean) => void;
+  /** How the Quran is shown (list or mushaf pages) and the mushaf look. Local to this device. */
+  mushaf: MushafPrefs;
+  setMushaf: (patch: Partial<MushafPrefs>) => void;
   t: (key: TKey, vars?: Record<string, string | number>) => string;
 }
 
@@ -58,6 +65,7 @@ const KEY = 'quran.settings';
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<Settings>(() => {
     const stored = { ...DEFAULT_SETTINGS, ...loadJSON<Partial<Settings>>(KEY, {}) };
+    setTranslationEdition(stored.translation);
     return { ...stored, reciter: normalizeReciterId(stored.reciter) };
   });
 
@@ -81,6 +89,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const setTajweed = useCallback((on: boolean) => { setTajweedState(on); saveJSON('quran.tajweed', on); }, []);
   const [wordHighlight, setWordHighlightState] = useState<boolean>(() => loadJSON<boolean>('quran.wordHighlight', true) !== false);
   const setWordHighlight = useCallback((on: boolean) => { setWordHighlightState(on); saveJSON('quran.wordHighlight', on); }, []);
+  const [mushaf, setMushafState] = useState<MushafPrefs>(() => normalizeMushaf(loadJSON<Partial<MushafPrefs>>('quran.mushaf', DEFAULT_MUSHAF)));
+  const setMushaf = useCallback((patch: Partial<MushafPrefs>) => setMushafState(m => { const next = normalizeMushaf({ ...m, ...patch }); saveJSON('quran.mushaf', next); return next; }), []);
   const togglePin = useCallback((id: string) => setPinned(p => (p.includes(id) ? p.filter(x => x !== id) : [...p, id])), []);
 
   useEffect(() => {
@@ -90,7 +100,12 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     document.documentElement.style.setProperty('--ayah-size', `${settings.fontSize}px`);
   }, [settings]);
 
-  const update = useCallback((patch: Partial<Settings>) => setSettings(s => ({ ...s, ...patch })), []);
+  // The wide Quran font: every `.font-quran` element follows the --font-quran-active variable (see index.css).
+  useEffect(() => {
+    document.documentElement.style.setProperty('--font-quran-active', mushaf.wide ? '"Scheherazade New", "Amiri Quran", "Noto Naskh Arabic", serif' : '"Amiri Quran", "Noto Naskh Arabic", serif');
+  }, [mushaf.wide]);
+
+  const update = useCallback((patch: Partial<Settings>) => { if (patch.translation) setTranslationEdition(patch.translation); setSettings(s => ({ ...s, ...patch })); }, []);
   const replace = useCallback((next: Settings) => setSettings({ ...DEFAULT_SETTINGS, ...next }), []);
 
   const t = useCallback<SettingsContextValue['t']>(
@@ -102,7 +117,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     [settings.lang],
   );
 
-  const value = useMemo(() => ({ settings, update, replace, pinned, togglePin, gapSeconds, setGapSeconds, repeatTimes, setRepeatTimes, memorize, setMemorize, autoNextSurah, setAutoNextSurah, tajweed, setTajweed, wordHighlight, setWordHighlight, t }), [settings, update, replace, pinned, togglePin, gapSeconds, setGapSeconds, repeatTimes, setRepeatTimes, memorize, setMemorize, autoNextSurah, setAutoNextSurah, tajweed, setTajweed, wordHighlight, setWordHighlight, t]);
+  const value = useMemo(() => ({ settings, update, replace, pinned, togglePin, gapSeconds, setGapSeconds, repeatTimes, setRepeatTimes, memorize, setMemorize, autoNextSurah, setAutoNextSurah, tajweed, setTajweed, wordHighlight, setWordHighlight, mushaf, setMushaf, t }), [settings, update, replace, pinned, togglePin, gapSeconds, setGapSeconds, repeatTimes, setRepeatTimes, memorize, setMemorize, autoNextSurah, setAutoNextSurah, tajweed, setTajweed, wordHighlight, setWordHighlight, mushaf, setMushaf, t]);
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
 }
 

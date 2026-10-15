@@ -46,7 +46,7 @@ export function ReciterList({ value, onChange }: Props) {
             {selected && <Icon as={Check} className="size-3.5 text-primary-foreground" />}
           </View>
           <View className="flex-1">
-            <Text numberOfLines={1}>{name}</Text>
+            <Text>{name}</Text>
             {isDefault && <Text className="text-xs text-gold-foreground">{t('isDefault')}</Text>}
           </View>
         </Pressable>
@@ -84,8 +84,13 @@ export function ReciterList({ value, onChange }: Props) {
         </View>
       )}
       <View className="gap-1">
-        {pinned.length > 0 && <Text className="px-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('allReciters')}</Text>}
-        {others.map(row)}
+        <Text className="px-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('reciterGroupAyah')}</Text>
+        {others.filter(r => r.kind !== 'surah').map(row)}
+      </View>
+      <View className="gap-1">
+        <Text className="px-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('reciterGroupSurah')}</Text>
+        <Text className="px-3 text-xs leading-5 text-muted-foreground">{t('surahReciterNote')}</Text>
+        {others.filter(r => r.kind === 'surah').map(row)}
       </View>
     </View>
   );

@@ -71,14 +71,14 @@ const TextClassContext = React.createContext<string | undefined>(undefined);
  * Elements that already choose a family (font-quran, font-display, font-naskh) are left alone.
  */
 const FAMILY_CLASSES = new Set([
-  'font-quran', 'font-display', 'font-naskh',
+  'font-quran', 'font-quran-wide', 'font-display', 'font-naskh',
   'font-arabic', 'font-arabic-medium', 'font-arabic-semibold',
   'font-sans', 'font-sans-medium', 'font-sans-semibold',
 ]);
 const WEIGHT_CLASSES = new Set(['font-extrabold', 'font-bold', 'font-semibold', 'font-medium', 'font-normal']);
 
-function withFontFamily(classes: string, isRTL: boolean) {
-  const tokens = classes.split(/\s+/).filter(Boolean);
+function withFontFamily(classes: string, isRTL: boolean, wideQuran = false) {
+  const tokens = classes.split(/\s+/).filter(Boolean).map(token => (wideQuran && token === 'font-quran' ? 'font-quran-wide' : token));
   const weights = tokens.filter(token => WEIGHT_CLASSES.has(token));
   const rest = tokens.filter(token => !WEIGHT_CLASSES.has(token));
   // Already picked a family (font-quran, font-display, ...): keep it and drop the weight utilities,
@@ -100,11 +100,11 @@ function Text({
     asChild?: boolean;
   }) {
   const textClass = React.useContext(TextClassContext);
-  const { isRTL } = useSettings();
+  const { isRTL, mushaf } = useSettings();
   const Component = asChild ? Slot : RNText;
   return (
     <Component
-      className={withFontFamily(cn(textVariants({ variant }), textClass, className), isRTL)}
+      className={withFontFamily(cn(textVariants({ variant }), textClass, className), isRTL, mushaf.wide)}
       role={variant ? ROLE[variant] : undefined}
       aria-level={variant ? ARIA_LEVEL[variant] : undefined}
       {...props}

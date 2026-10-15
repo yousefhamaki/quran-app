@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils';
 import { fetchWordSegments } from '@/lib/quran';
 import { tajweedColor, wordText, type Word } from '@/lib/tajweed';
 import { activeWordAt, estimateSegments, type WordSegment } from '@/lib/wordtiming';
+import { setWordSheet } from '@/lib/ui-store';
 import { useSettings } from '@/context/settings';
 import { usePlayer } from '@/context/player';
 import { useTheme } from '@/context/theme';
@@ -82,7 +83,11 @@ export function AyahWords({ words, active, surah, ayah }: Props) {
           <span
             data-word={i}
             data-active={i === index || undefined}
-            className={cn('rounded-lg px-[0.06em] transition-colors duration-150', i === index && 'bg-primary/20 ring-1 ring-primary/40')}
+            role="button"
+            tabIndex={0}
+            onClick={e => { e.stopPropagation(); setWordSheet({ surah, ayah, index: i }); }}
+            onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); setWordSheet({ surah, ayah, index: i }); } }}
+            className={cn('cursor-pointer rounded-lg px-[0.06em] transition-colors duration-150 hover:bg-accent/60 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none', i === index && 'bg-primary/20 ring-1 ring-primary/40')}
           >
             {word.map((chunk, j) => (
               <span key={j} style={tajweed ? { color: tajweedColor(chunk.cls, dark) } : undefined}>{chunk.text}</span>

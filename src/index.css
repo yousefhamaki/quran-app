@@ -144,7 +144,7 @@
 }
 
 /* Quran / Arabic display text always uses the Arabic line-height token. */
-.font-quran { line-height: var(--leading-ar) !important; }
+.font-quran { line-height: var(--leading-ar) !important; font-family: var(--font-quran-active, "Amiri Quran", "Noto Naskh Arabic", serif); }
 
 /* For Arabic in truncated / overflow-hidden boxes: extra block padding keeps diacritics from being clipped
    at the tight line-height, and the equal negative margin leaves the layout unchanged. */

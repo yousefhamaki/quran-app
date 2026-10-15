@@ -76,12 +76,12 @@ export function SleepControl() {
   );
 }
 
-function SwitchRow({ label, hint, checked, onChange }: { label: string; hint?: string; checked: boolean; onChange: (v: boolean) => void }) {
+function SwitchRow({ label, hint, checked, onChange, disabled }: { label: string; hint?: string; checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
   return (
     <View className="gap-1.5">
       <View className="min-h-11 flex-row items-center justify-between gap-4">
         <Text className="flex-1 text-sm font-medium">{label}</Text>
-        <Switch checked={checked} onCheckedChange={onChange} accessibilityLabel={label} />
+        <Switch checked={checked} onCheckedChange={onChange} disabled={disabled} accessibilityLabel={label} />
       </View>
       {hint ? <Text className="text-xs text-muted-foreground">{hint}</Text> : null}
     </View>

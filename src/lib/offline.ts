@@ -150,9 +150,14 @@ export function resolveNextSurah(current: number, reciter: string, online: boole
 export const isOnline = () => (typeof navigator === 'undefined' ? true : navigator.onLine);
 
 export function formatBytes(bytes: number) {
-  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-  if (bytes < 1024 ** 3) return `${(bytes / 1024 / 1024).toFixed(bytes < 10 * 1024 * 1024 ? 1 : 0)} MB`;
-  return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
+  const text =
+    bytes < 1024 * 1024
+      ? `${Math.max(1, Math.round(bytes / 1024))} KB`
+      : bytes < 1024 ** 3
+        ? `${(bytes / 1024 / 1024).toFixed(bytes < 10 * 1024 * 1024 ? 1 : 0)} MB`
+        : `${(bytes / 1024 ** 3).toFixed(1)} GB`;
+  // Keep "1.6 GB" in this order inside right-to-left (Arabic) text.
+  return `⁦${text}⁩`;
 }
 
 /** Rough size before downloading (≈ 125 KB per ayah at 128 kbps). */

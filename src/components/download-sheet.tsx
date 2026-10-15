@@ -3,8 +3,8 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
-import { RECITERS, type Surah } from '@/lib/quran';
-import { estimateBytes, formatBytes, offlineSupported } from '@/lib/offline';
+import { RECITERS, estimateReciterBytes, type Surah } from '@/lib/quran';
+import { formatBytes, offlineSupported } from '@/lib/offline';
 import { useDownloads } from '@/context/downloads';
 import { useSettings } from '@/context/settings';
 
@@ -44,7 +44,7 @@ export function DownloadSheet({ surah, open, onOpenChange }: Props) {
             </div>
             <div className="flex justify-between gap-4">
               <dt className="text-muted-foreground">{record ? t('offlineSize') : t('offlineEstimate')}</dt>
-              <dd dir="ltr" className="font-medium tabular-nums">{record ? formatBytes(record.bytes) : `≈ ${formatBytes(estimateBytes(surah.numberOfAyahs))}`}</dd>
+              <dd dir="ltr" className="font-medium tabular-nums">{record ? formatBytes(record.bytes) : `≈ ${formatBytes(estimateReciterBytes(reciter.id, surah.numberOfAyahs))}`}</dd>
             </div>
           </dl>
 

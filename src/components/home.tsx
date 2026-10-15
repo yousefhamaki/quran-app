@@ -9,10 +9,14 @@ import { SurahCard } from '@/components/surah-card';
 import { useSettings } from '@/context/settings';
 import { useLibrary } from '@/context/library';
 import { useDownloads } from '@/context/downloads';
-import { useHifz } from '@/context/hifz';
-import { GraduationCap } from 'lucide-react';
-import { CircleCheck } from 'lucide-react';
-import { RECITERS } from '@/lib/quran';
+import { ArrowDownToLine, Clock, Flame } from 'lucide-react';
+import { QueueSheet } from '@/components/queue-sheet';
+import { formatBytes } from '@/lib/offline';
+import type { Page } from '@/hooks/use-hash-route';
+import { usePrayer } from '@/context/prayer';
+import { formatTime } from '@/lib/prayer';
+import { PRAYER_KEYS } from '@/components/prayer-page';
+import { useHabit } from '@/context/habit';
 import { isArabic, normalize, searchQuran, type SearchResult, type Surah } from '@/lib/quran';
 
 interface Props {
@@ -21,7 +25,7 @@ interface Props {
   error: boolean;
   onRetry: () => void;
   onOpen: (surah: number, ayah?: number) => void;
-  onOpenPlan: () => void;
+  onOpenPage: (page: Page) => void;
 }
 
 type Found = { state: 'loading' } | { state: 'error' } | { state: 'ok'; term: string; ar: boolean; data: SearchResult };
@@ -44,11 +48,14 @@ function Highlight({ text, term, ar }: { text: string; term: string; ar: boolean
   );
 }
 
-export function Home({ surahs, loading, error, onRetry, onOpen, onOpenPlan }: Props) {
+export function Home({ surahs, loading, error, onRetry, onOpen, onOpenPage }: Props) {
   const { settings, t } = useSettings();
   const { lastRead, bookmarks } = useLibrary();
-  const { records } = useDownloads();
-  const { plan, learn, due } = useHifz();
+  const { records, hasAny } = useDownloads();
+  const [view, setView] = useState<'all' | 'offline'>('all');
+  const [queueOpen, setQueueOpen] = useState(false);
+  const { streak, readToday } = useHabit();
+  const { next: nextPrayer } = usePrayer();
   const [query, setQuery] = useState('');
   const [found, setFound] = useState<Found | null>(null);
   const ar = settings.lang === 'ar';
@@ -67,6 +74,10 @@ export function Home({ surahs, loading, error, onRetry, onOpen, onOpenPlan }: Pr
           ),
     [q, surahs],
   );
+  // Downloaded surahs are marked with a check on their card; this filter lists just those, however many there are.
+  const savedCount = useMemo(() => surahs.filter(s => hasAny(s.number)).length, [surahs, hasAny, records]);
+  const list = view === 'offline' && savedCount > 0 ? filtered.filter(s => hasAny(s.number)) : filtered;
+  const savedBytes = records.reduce((sum, d) => sum + d.bytes, 0);
 
   const surahName = (n: number) => {
     const s = surahs.find(x => x.number === n);
@@ -106,31 +117,18 @@ export function Home({ surahs, loading, error, onRetry, onOpen, onOpenPlan }: Pr
         <ArrowRight className="size-5 shrink-0 transition-transform group-hover:translate-x-0.5 rtl:rotate-180 rtl:group-hover:-translate-x-0.5" aria-hidden />
       </button>
 
-      {/* Memorization plan */}
-      <button
-        type="button"
-        onClick={onOpenPlan}
-        className="mt-3 flex w-full items-center gap-4 rounded-2xl border bg-card p-4 text-start transition-colors hover:border-primary/50 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
-      >
-        <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-secondary text-primary" aria-hidden>
-          <GraduationCap className="size-6" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block font-medium">{plan ? `${t('planTitle')} · ${surahName(plan.surah)}` : t('planCardEmpty')}</span>
-          <span className="block truncate text-sm text-muted-foreground">
-            {!plan
-              ? t('planCardEmptyHint')
-              : !learn && due.length === 0
-                ? t('planAllDone')
-                : t('planCardToday', { learn: learn ? learn.to - learn.from + 1 : 0, due: due.length })}
-          </span>
-        </span>
-        {plan && due.length + (learn ? 1 : 0) > 0 && (
-          <span className="grid size-7 shrink-0 place-items-center rounded-full bg-primary text-xs font-semibold text-primary-foreground" aria-hidden>
-            {due.length + (learn ? 1 : 0)}
-          </span>
-        )}
-      </button>
+      {/* Today: one quiet line, the full tools live in the bottom tabs. */}
+      <div className="mt-3 flex flex-wrap gap-2" aria-label={t('navDaily')}>
+        <button type="button" onClick={() => onOpenPage('daily')} className="flex h-11 items-center gap-2 rounded-full border bg-card px-4 text-sm transition-colors hover:border-primary/50 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none">
+          <Flame className={streak > 0 ? 'size-4 text-primary' : 'size-4 text-muted-foreground'} aria-hidden />
+          {streak > 0 ? t('todayStreak', { n: streak }) : t('todayStart')}
+          {!readToday && <span className="size-2 rounded-full bg-primary" aria-hidden />}
+        </button>
+        <button type="button" onClick={() => onOpenPage('prayer')} className="flex h-11 items-center gap-2 rounded-full border bg-card px-4 text-sm transition-colors hover:border-primary/50 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none">
+          <Clock className="size-4 text-primary" aria-hidden />
+          {nextPrayer ? `${t(PRAYER_KEYS[nextPrayer.name])} ${formatTime(nextPrayer.at, ar ? 'ar' : 'en')}` : t('todayPrayerSet')}
+        </button>
+      </div>
 
       {/* Search */}
       <form
@@ -196,36 +194,6 @@ export function Home({ surahs, loading, error, onRetry, onOpen, onOpenPlan }: Pr
         </section>
       ) : (
         <>
-          {records.length > 0 && !q && surahs.length > 0 && (
-            <section className="mt-6" aria-labelledby="offline-heading">
-              <h2 id="offline-heading" className="mb-2 flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                <CircleCheck className="size-4 text-primary" aria-hidden /> {t('availableOffline')}
-              </h2>
-              <ul className="grid gap-2 sm:grid-cols-2">
-                {[...records].sort((a, b) => a.surah - b.surah).map(d => {
-                  const s = surahs.find(x => x.number === d.surah);
-                  const r = RECITERS.find(x => x.id === d.reciter);
-                  if (!s) return null;
-                  return (
-                    <li key={`${d.surah}:${d.reciter}`}>
-                      <button
-                        type="button"
-                        onClick={() => onOpen(d.surah)}
-                        className="flex min-h-14 w-full items-center gap-3 rounded-2xl border border-primary/30 bg-secondary px-4 py-2 text-start transition-colors hover:border-primary focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
-                      >
-                        <span className="min-w-0 flex-1">
-                          <span className={`block truncate ${ar ? 'ar-safe font-quran text-lg' : 'font-display text-lg font-semibold'}`}>{ar ? s.name : s.englishName}</span>
-                          <span className="block truncate text-xs text-muted-foreground">{r ? (ar ? r.ar : r.en) : ''}</span>
-                        </span>
-                        <CircleCheck className="size-5 shrink-0 text-primary" aria-hidden />
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          )}
-
           {bookmarks.length > 0 && !q && surahs.length > 0 && (
             <section className="mt-6">
               <h2 className="mb-2 text-sm font-medium text-muted-foreground">{t('bookmarks')}</h2>
@@ -246,7 +214,37 @@ export function Home({ surahs, loading, error, onRetry, onOpen, onOpenPlan }: Pr
             </section>
           )}
 
-          <h2 className="mt-7 mb-3 font-display text-xl font-semibold">{t('surahs')}</h2>
+          <div className="mt-7 mb-3 flex items-center justify-between gap-2">
+            <h2 className="font-display text-xl font-semibold">{t('surahs')}</h2>
+            <div className="flex items-center gap-2">
+              {savedCount > 0 && !q && (
+                <div role="group" aria-label={t('availableOffline')} className="flex gap-1 rounded-full bg-muted p-1">
+                  {(['all', 'offline'] as const).map(v => (
+                    <button
+                      key={v}
+                      type="button"
+                      aria-pressed={view === v}
+                      onClick={() => setView(v)}
+                      className={`h-9 rounded-full px-4 text-sm font-medium transition-colors focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none ${view === v ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                    >
+                      {v === 'all' ? t('filterAll') : t('filterOffline', { n: savedCount })}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <Button variant="outline" size="icon" className="size-11 rounded-full" onClick={() => setQueueOpen(true)} aria-label={t('queueOpen')} title={t('downloadsButton')}>
+                <ArrowDownToLine className="size-5" aria-hidden />
+              </Button>
+            </div>
+          </div>
+
+          {view === 'offline' && savedCount > 0 && !q && (
+            <div className="mb-3 flex items-center justify-between gap-3 rounded-2xl bg-secondary px-4 py-3">
+              <p className="min-w-0 text-sm text-secondary-foreground">{savedCount > 0 ? t('offlineSummary', { n: savedCount, size: formatBytes(savedBytes) }) : t('offlineNone')}</p>
+              <Button size="sm" className="h-10 shrink-0 rounded-xl" onClick={() => setQueueOpen(true)}>{t('downloadMore')}</Button>
+            </div>
+          )}
+          <QueueSheet surahs={surahs} open={queueOpen} onOpenChange={setQueueOpen} />
 
           {error && (
             <div className="rounded-2xl border border-dashed p-8 text-center">
@@ -265,12 +263,12 @@ export function Home({ surahs, loading, error, onRetry, onOpen, onOpenPlan }: Pr
 
           {!loading && !error && (
             <ul className="grid gap-3 sm:grid-cols-2">
-              {filtered.map((s, i) => (
+              {list.map((s, i) => (
                 <li key={s.number}><SurahCard surah={s} index={i} onOpen={x => onOpen(x.number)} /></li>
               ))}
             </ul>
           )}
-          {!loading && !error && filtered.length === 0 && <p className="py-10 text-center text-muted-foreground">{t('noResults')}</p>}
+          {!loading && !error && list.length === 0 && <p className="py-10 text-center text-muted-foreground">{t('noResults')}</p>}
         </>
       )}
     </div>

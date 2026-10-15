@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { Progress } from '@/components/ui/progress';
 import { Text } from '@/components/ui/text';
-import { RECITERS } from '@/lib/quran';
-import { estimateBytes, formatBytes, offlineSupported } from '@/lib/offline';
+import { RECITERS, estimateReciterBytes } from '@/lib/quran';
+import { formatBytes, offlineSupported } from '@/lib/offline';
 import { useDownloads } from '@/context/downloads';
 import { useSettings } from '@/context/settings';
 import { useSurahs } from '@/context/surahs';
@@ -49,7 +49,7 @@ export function DownloadSheet() {
           <Row label={t('reciter')} value={isRTL ? reciter.ar : reciter.en} />
           <Row
             label={record ? t('offlineSize') : t('offlineEstimate')}
-            value={record ? formatBytes(record.bytes) : `≈ ${formatBytes(estimateBytes(surah.numberOfAyahs))}`}
+            value={record ? formatBytes(record.bytes) : `≈ ${formatBytes(estimateReciterBytes(reciter.id, surah.numberOfAyahs))}`}
           />
         </View>
 

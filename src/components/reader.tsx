@@ -3,7 +3,7 @@ import { ArrowDownToLine, Bookmark, BookOpenText, Brain, CircleCheck, Eye, EyeOf
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { fetchSurah, normalize, type Ayah, type Surah } from '@/lib/quran';
+import { fetchSurah, normalize, translationDir, type Ayah, type Surah } from '@/lib/quran';
 import { useSettings } from '@/context/settings';
 import { useLibrary } from '@/context/library';
 import { usePlayer } from '@/context/player';
@@ -34,7 +34,7 @@ export function Reader({ surah, focusAyah, onSelectAyah, onOpenTafsir, onOpenDow
   const { isBookmarked, markRead } = useLibrary();
   const { playing, setSurahLength, play, toggle, range } = usePlayer();
   // Word-level text (tajweed colours / word highlight); falls back to the plain text while loading or offline.
-  const surahWords = useSurahWords(surah.number, tajweed || wordHighlight, settings.reciter);
+  const surahWords = useSurahWords(surah.number, true, settings.reciter);
   const { has, job } = useDownloads();
   const saved = has(surah.number, settings.reciter);
   const downloading = job?.surah === surah.number;
@@ -71,7 +71,7 @@ export function Reader({ surah, focusAyah, onSelectAyah, onOpenTafsir, onOpenDow
       })
       .catch(() => !cancelled && setState('error'));
     return () => { cancelled = true; };
-  }, [surah.number, attempt, setSurahLength]);
+  }, [surah.number, attempt, setSurahLength, settings.translation]);
 
   // Deep link / resume: scroll to the requested ayah once the text is on screen.
   useEffect(() => {
@@ -204,7 +204,7 @@ export function Reader({ surah, focusAyah, onSelectAyah, onOpenTafsir, onOpenDow
                   {isPlaying && <Volume2 className="ms-1 inline size-4 text-primary" aria-label={t('nowPlaying')} />}
                 </p>
                 {settings.showTranslation && (
-                  <p dir="ltr" className="mt-3 text-start text-[0.95rem] leading-relaxed text-muted-foreground">{a.en}</p>
+                  <p dir={translationDir(settings.translation)} className="mt-3 text-start text-[0.95rem] leading-relaxed text-muted-foreground">{a.en}</p>
                 )}
               </button>
               <div className="flex items-center justify-end gap-1 px-3 pb-1">

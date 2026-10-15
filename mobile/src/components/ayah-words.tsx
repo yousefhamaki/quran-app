@@ -6,6 +6,7 @@ import { tajweedColor, wordText, type Word } from '@/lib/tajweed';
 import { activeWordAt, estimateSegments, type WordSegment } from '@/lib/wordtiming';
 import { usePlayer } from '@/context/player';
 import { useSettings } from '@/context/settings';
+import { useUI } from '@/context/ui';
 
 /** The highlight runs this far ahead of the audio clock to hide the polling and render delay. */
 const LEAD_MS = 110;
@@ -80,6 +81,7 @@ interface Props {
  */
 export function AyahWords({ words, active, surah, ayah }: Props) {
   const { tajweed, wordHighlight } = useSettings();
+  const { setWord } = useUI();
   const { theme } = useUniwind();
   const primary = String(useCSSVariable('--color-primary') ?? '#0b5d4b');
   const dark = theme === 'dark';
@@ -89,7 +91,7 @@ export function AyahWords({ words, active, surah, ayah }: Props) {
   return (
     <>
       {words.map((word, i) => (
-        <Text key={i} className="font-quran" style={i === index ? { backgroundColor: highlight } : undefined}>
+        <Text key={i} className="font-quran" onPress={() => setWord({ surah, ayah, index: i })} accessibilityRole="button" style={i === index ? { backgroundColor: highlight } : undefined}>
           {word.map((chunk, j) => (
             <Text key={j} className="font-quran" style={tajweed && chunk.cls ? { color: tajweedColor(chunk.cls, dark) } : undefined}>
               {chunk.text}

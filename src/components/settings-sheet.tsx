@@ -3,17 +3,15 @@ import { Monitor, Moon, Sun } from 'lucide-react';
 import { useTheme, type Theme } from '@/context/theme';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Label } from '@/components/ui/label';
-import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { TAFSIRS, type Surah } from '@/lib/quran';
+import type { Surah } from '@/lib/quran';
 import { useOrderedReciters } from '@/components/reciter-list';
 import { GapControl } from '@/components/gap-control';
 import { RepeatControl } from '@/components/repeat-control';
-import { TajweedLegend } from '@/components/tajweed-legend';
 import { DownloadsList } from '@/components/downloads-list';
 import { SleepControl, AutoNextSurahControl } from '@/components/sleep-control';
 import type { Lang } from '@/lib/i18n';
@@ -40,7 +38,7 @@ function Row({ id, label, children }: { id: string; label: string; children: Rea
 }
 
 export function SettingsSheet({ open, onOpenChange, surahs }: { open: boolean; onOpenChange: (o: boolean) => void; surahs: Surah[] }) {
-  const { settings, update, memorize, setMemorize, tajweed, setTajweed, wordHighlight, setWordHighlight, t } = useSettings();
+  const { settings, update, t } = useSettings();
   const { theme, setTheme } = useTheme();
   const { pinned, others } = useOrderedReciters();
   const ar = settings.lang === 'ar';
@@ -86,67 +84,20 @@ export function SettingsSheet({ open, onOpenChange, surahs }: { open: boolean; o
 
             <Separator />
 
-            <Section title={t('reading')}>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="font-size">{t('textSize')}</Label>
-                  <span className="text-sm tabular-nums text-muted-foreground">{settings.fontSize}px</span>
-                </div>
-                <Slider
-                  id="font-size"
-                  min={20}
-                  max={60}
-                  step={2}
-                  value={[settings.fontSize]}
-                  onValueChange={([v]) => update({ fontSize: v })}
-                  aria-label={t('textSize')}
-                />
-                <p dir="rtl" className="rounded-xl bg-muted p-4 text-center font-quran" style={{ fontSize: settings.fontSize }}>
-                  بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ
-                </p>
-              </div>
-              <Row id="show-translation" label={t('showTranslation')}>
-                <Switch id="show-translation" checked={settings.showTranslation} onCheckedChange={v => update({ showTranslation: v })} />
-              </Row>
-              <div className="space-y-1.5">
-                <Row id="memorize" label={t('memorize')}>
-                  <Switch id="memorize" checked={memorize} onCheckedChange={setMemorize} />
-                </Row>
-                <p className="text-xs text-muted-foreground">{t('memorizeHint')}</p>
-              </div>
-              <div className="space-y-1.5">
-                <Row id="word-highlight" label={t('wordHighlight')}>
-                  <Switch id="word-highlight" checked={wordHighlight} onCheckedChange={setWordHighlight} />
-                </Row>
-                <p className="text-xs text-muted-foreground">{t('wordHighlightHint')}</p>
-              </div>
-              <div className="space-y-1.5">
-                <Row id="tajweed" label={t('tajweedColours')}>
-                  <Switch id="tajweed" checked={tajweed} onCheckedChange={setTajweed} />
-                </Row>
-                <p className="text-xs text-muted-foreground">{t('tajweedHint')}</p>
-                <TajweedLegend />
-              </div>
-              <div className="space-y-2">
-                <Label>{t('defaultTafsir')}</Label>
-                <Select value={String(settings.tafsirId)} onValueChange={v => update({ tafsirId: Number(v) })}>
-                  <SelectTrigger className="h-11 w-full"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {TAFSIRS.map(x => <SelectItem key={x.id} value={String(x.id)}>{ar ? x.ar : x.en}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            </Section>
-
-            <Separator />
-
             <Section title={t('audio')}>
               <div className="space-y-2">
                 <Label>{t('defaultReciter')}</Label>
                 <Select value={settings.reciter} onValueChange={v => update({ reciter: v })}>
                   <SelectTrigger className="h-11 w-full"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {[...pinned, ...others].map(r => <SelectItem key={r.id} value={r.id}>{ar ? r.ar : r.en}</SelectItem>)}
+                    <SelectGroup>
+                      <SelectLabel>{t('reciterGroupAyah')}</SelectLabel>
+                      {[...pinned, ...others].filter(r => r.kind !== 'surah').map(r => <SelectItem key={r.id} value={r.id}>{ar ? r.ar : r.en}</SelectItem>)}
+                    </SelectGroup>
+                    <SelectGroup>
+                      <SelectLabel>{t('reciterGroupSurah')}</SelectLabel>
+                      {[...pinned, ...others].filter(r => r.kind === 'surah').map(r => <SelectItem key={r.id} value={r.id}>{ar ? r.ar : r.en}</SelectItem>)}
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
               </div>

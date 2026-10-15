@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { cn } from '@/lib/utils';
+import { useRegisterSheet } from '@/lib/sheet-store';
 import { useSettings } from '@/context/settings';
 
 interface Props {
@@ -31,6 +32,7 @@ interface Props {
 export function Sheet({ open, onClose, title, description, quranTitle, children, footer, tall }: Props) {
   const insets = useSafeAreaInsets();
   const { isRTL, t } = useSettings();
+  useRegisterSheet(open);
   if (!open) return null;
 
   return (

@@ -47,7 +47,7 @@ export function ReciterList({ value, onChange }: Props) {
             {selected && <Check className="size-3.5" />}
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block truncate">{name}</span>
+            <span className="block break-words">{name}</span>
             {isDefault && <span className="block text-xs text-gold-foreground">{t('isDefault')}</span>}
           </span>
         </button>
@@ -98,8 +98,13 @@ export function ReciterList({ value, onChange }: Props) {
         </section>
       )}
       <section>
-        {pinned.length > 0 && <h4 className="mb-1 px-3 text-xs font-medium tracking-wide text-muted-foreground uppercase">{t('allReciters')}</h4>}
-        <ul className="space-y-1">{others.map(row)}</ul>
+        <h4 className="mb-1 px-3 text-xs font-medium tracking-wide text-muted-foreground uppercase">{t('reciterGroupAyah')}</h4>
+        <ul className="space-y-1">{others.filter(r => r.kind !== 'surah').map(row)}</ul>
+      </section>
+      <section>
+        <h4 className="mb-1 px-3 text-xs font-medium tracking-wide text-muted-foreground uppercase">{t('reciterGroupSurah')}</h4>
+        <p className="mb-1 px-3 text-xs text-muted-foreground">{t('surahReciterNote')}</p>
+        <ul className="space-y-1">{others.filter(r => r.kind === 'surah').map(row)}</ul>
       </section>
     </div>
   );

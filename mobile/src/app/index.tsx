@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
 import { FlatList, Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ArrowRight, BookOpen, CircleCheck, GraduationCap, Search, X } from 'lucide-react-native';
+import { ArrowDownToLine, ArrowRight, BookOpen, Clock, Flame, Search, X } from 'lucide-react-native';
+import { QueueSheet } from '@/components/sheets/queue-sheet';
+import { formatBytes } from '@/lib/offline';
 import { AppHeader } from '@/components/app-header';
 import { SurahCard } from '@/components/surah-card';
 import { Button } from '@/components/ui/button';
@@ -9,10 +11,12 @@ import { Icon } from '@/components/ui/icon';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Text } from '@/components/ui/text';
-import { RECITERS, isArabic, normalize, searchQuran, type SearchResult, type Surah } from '@/lib/quran';
+import { isArabic, normalize, searchQuran, type SearchResult, type Surah } from '@/lib/quran';
 import { cn } from '@/lib/utils';
 import { useDownloads } from '@/context/downloads';
-import { useHifz } from '@/context/hifz';
+import { useHabit } from '@/context/habit';
+import { PRAYER_KEYS, usePrayer } from '@/context/prayer';
+import { formatTime } from '@/lib/prayer';
 import { useLibrary } from '@/context/library';
 import { useSettings } from '@/context/settings';
 import { useSurahs } from '@/context/surahs';
@@ -46,8 +50,11 @@ export default function Home() {
   const { t, isRTL } = useSettings();
   const { surahs, status, reload, byNumber } = useSurahs();
   const { lastRead, bookmarks } = useLibrary();
-  const { records } = useDownloads();
-  const { plan, learn, due } = useHifz();
+  const { records, hasAny } = useDownloads();
+  const [view, setView] = useState<'all' | 'offline'>('all');
+  const [queueOpen, setQueueOpen] = useState(false);
+  const { streak, readToday } = useHabit();
+  const { next: nextPrayer } = usePrayer();
   const online = useOnline();
   const [query, setQuery] = useState('');
   const [found, setFound] = useState<Found | null>(null);
@@ -64,6 +71,10 @@ export default function Home() {
         : surahs.filter(s => String(s.number) === q || normalize(s.name).includes(q) || normalize(s.englishName).includes(q) || normalize(s.englishNameTranslation).includes(q)),
     [q, surahs],
   );
+  // Downloaded surahs are marked with a check on their card; this filter lists just those, however many there are.
+  const savedCount = useMemo(() => surahs.filter(s => hasAny(s.number)).length, [surahs, hasAny, records]);
+  const list = view === 'offline' && savedCount > 0 ? filtered.filter(s => hasAny(s.number)) : filtered;
+  const savedBytes = records.reduce((sum, d) => sum + d.bytes, 0);
 
   async function runSearch() {
     const term = query.trim();
@@ -82,7 +93,7 @@ export default function Home() {
       : found
         ? []
         : status === 'ok'
-          ? filtered.map(surah => ({ kind: 'surah', surah }))
+          ? list.map(surah => ({ kind: 'surah', surah }))
           : [];
 
   const resume = lastRead ?? { surah: 1, ayah: 1 };
@@ -114,27 +125,18 @@ export default function Home() {
         </View>
       )}
 
-      {/* Memorization plan */}
-      <Pressable
-        onPress={() => router.push('/plan')}
-        accessibilityRole="button"
-        className="flex-row items-center gap-4 rounded-2xl border border-border bg-card p-4 active:border-primary"
-      >
-        <View className="size-11 items-center justify-center rounded-xl bg-secondary">
-          <Icon as={GraduationCap} className="size-6 text-primary" />
-        </View>
-        <View className="flex-1">
-          <Text numberOfLines={1} className="font-medium">{plan ? `${t('planTitle')} · ${surahName(plan.surah)}` : t('planCardEmpty')}</Text>
-          <Text numberOfLines={1} className="text-sm text-muted-foreground">
-            {!plan ? t('planCardEmptyHint') : !learn && due.length === 0 ? t('planAllDone') : t('planCardToday', { learn: learn ? learn.to - learn.from + 1 : 0, due: due.length })}
-          </Text>
-        </View>
-        {plan && due.length + (learn ? 1 : 0) > 0 ? (
-          <View className="size-7 items-center justify-center rounded-full bg-primary">
-            <Text className="text-xs font-semibold text-primary-foreground">{due.length + (learn ? 1 : 0)}</Text>
-          </View>
-        ) : null}
-      </Pressable>
+      {/* Today: one quiet line, the full tools live in the bottom tabs. */}
+      <View className="flex-row flex-wrap gap-2" accessibilityLabel={t('navDaily')}>
+        <Pressable onPress={() => router.push('/daily')} accessibilityRole="button" className="h-11 flex-row items-center gap-2 rounded-full border border-border bg-card px-4 active:border-primary">
+          <Icon as={Flame} className={streak > 0 ? 'size-4 text-primary' : 'size-4 text-muted-foreground'} />
+          <Text className="text-sm">{streak > 0 ? t('todayStreak', { n: streak }) : t('todayStart')}</Text>
+          {!readToday ? <View className="size-2 rounded-full bg-primary" /> : null}
+        </Pressable>
+        <Pressable onPress={() => router.push('/prayer')} accessibilityRole="button" className="h-11 flex-row items-center gap-2 rounded-full border border-border bg-card px-4 active:border-primary">
+          <Icon as={Clock} className="size-4 text-primary" />
+          <Text className="text-sm">{nextPrayer ? `${t(PRAYER_KEYS[nextPrayer.name])} ${formatTime(nextPrayer.at, isRTL ? 'ar' : 'en')}` : t('todayPrayerSet')}</Text>
+        </Pressable>
+      </View>
 
       {/* Search */}
       <View className="flex-row items-center gap-2" accessibilityRole="search">
@@ -178,34 +180,6 @@ export default function Home() {
         </View>
       ) : (
         <>
-          {records.length > 0 && !q && surahs.length > 0 && (
-            <View className="gap-2">
-              <View className="flex-row items-center gap-2">
-                <Icon as={CircleCheck} className="size-4 text-primary" />
-                <Text accessibilityRole="header" className="text-sm font-medium text-muted-foreground">{t('availableOffline')}</Text>
-              </View>
-              <View className="gap-2">
-                {[...records].sort((a, b) => a.surah - b.surah).map(d => {
-                  const r = RECITERS.find(x => x.id === d.reciter);
-                  return (
-                    <Pressable
-                      key={`${d.surah}:${d.reciter}`}
-                      onPress={() => open(d.surah)}
-                      accessibilityRole="button"
-                      className="min-h-14 flex-row items-center gap-3 rounded-2xl border border-primary/30 bg-secondary px-4 py-2 active:border-primary"
-                    >
-                      <View className="flex-1">
-                        <Text numberOfLines={1} className={cn('text-lg', isRTL ? 'font-quran' : 'font-display')} style={isRTL ? { lineHeight: 28, paddingVertical: 3 } : undefined}>{surahName(d.surah)}</Text>
-                        <Text numberOfLines={1} className="text-xs text-muted-foreground">{r ? (isRTL ? r.ar : r.en) : ''}</Text>
-                      </View>
-                      <Icon as={CircleCheck} className="size-5 text-primary" />
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </View>
-          )}
-
           {bookmarks.length > 0 && !q && surahs.length > 0 && (
             <View className="gap-2">
               <Text accessibilityRole="header" className="text-sm font-medium text-muted-foreground">{t('bookmarks')}</Text>
@@ -219,7 +193,41 @@ export default function Home() {
             </View>
           )}
 
-          <Text accessibilityRole="header" className="pt-2 font-display text-xl">{t('surahs')}</Text>
+          <View className="flex-row items-center justify-between gap-2 pt-2">
+            <Text accessibilityRole="header" className="font-display text-xl">{t('surahs')}</Text>
+            <View className="flex-row items-center gap-2">
+              {savedCount > 0 && !q ? (
+                <View accessibilityRole="tablist" accessibilityLabel={t('availableOffline')} className="flex-row gap-1 rounded-full bg-muted p-1">
+                  {(['all', 'offline'] as const).map(v => (
+                    <Pressable
+                      key={v}
+                      onPress={() => setView(v)}
+                      accessibilityRole="tab"
+                      accessibilityState={{ selected: view === v }}
+                      className={cn('h-9 items-center justify-center rounded-full px-4', view === v && 'bg-background')}
+                    >
+                      <Text className={cn('text-sm font-medium', view === v ? 'text-foreground' : 'text-muted-foreground')}>
+                        {v === 'all' ? t('filterAll') : t('filterOffline', { n: savedCount })}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              ) : null}
+              <Button variant="outline" size="icon" className="size-11 rounded-full" onPress={() => setQueueOpen(true)} accessibilityLabel={t('queueOpen')}>
+                <Icon as={ArrowDownToLine} className="size-5" />
+              </Button>
+            </View>
+          </View>
+
+          {view === 'offline' && savedCount > 0 && !q ? (
+            <View className="flex-row items-center justify-between gap-3 rounded-2xl bg-secondary px-4 py-3">
+              <Text className="flex-1 text-sm text-secondary-foreground">{savedCount > 0 ? t('offlineSummary', { n: savedCount, size: formatBytes(savedBytes) }) : t('offlineNone')}</Text>
+              <Button className="h-10 rounded-xl px-4" onPress={() => setQueueOpen(true)}>
+                <Text>{t('downloadMore')}</Text>
+              </Button>
+            </View>
+          ) : null}
+          <QueueSheet open={queueOpen} onClose={() => setQueueOpen(false)} />
 
           {status === 'error' && (
             <View className="items-center gap-4 rounded-2xl border border-dashed border-border p-8">
@@ -234,7 +242,7 @@ export default function Home() {
               {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-[68px] rounded-2xl" />)}
             </View>
           )}
-          {status === 'ok' && filtered.length === 0 && <Text className="py-8 text-center text-muted-foreground">{t('noResults')}</Text>}
+          {status === 'ok' && list.length === 0 && <Text className="py-8 text-center text-muted-foreground">{t('noResults')}</Text>}
         </>
       )}
     </View>
@@ -248,7 +256,7 @@ export default function Home() {
         keyExtractor={r => (r.kind === 'surah' ? `s${r.surah.number}` : `m${r.surah}:${r.ayah}`)}
         ListHeaderComponent={header}
         keyboardShouldPersistTaps="handled"
-        contentContainerClassName="px-4 pb-44 gap-3"
+        contentContainerClassName="px-4 pb-56 gap-3"
         renderItem={({ item }) =>
           item.kind === 'surah' ? (
             <SurahCard surah={item.surah} onOpen={s => open(s.number)} />
