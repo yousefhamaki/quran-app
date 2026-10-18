@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { QiblaCompass } from '@/components/qibla-compass';
 import { ArrowRight, BedDouble, Clock, CloudSun, Compass, Crosshair, MapPin, Moon, MoonStar, SlidersHorizontal, Sun, SunMedium, Sunrise, Sunset } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -134,14 +135,7 @@ export function PrayerPage({ onOpenPage, initialTab }: { onOpenPage: (page: Page
       {/* Qibla */}
       {tab === 'qibla' && (loc ? (
         <Card className="items-center gap-3 rounded-3xl p-5 text-center">
-          <div className="relative grid size-44 place-items-center rounded-full border-2 border-border" role="img" aria-label={t('qiblaBearing', { deg: Math.round(bearing) })}>
-            <span className="absolute top-1 text-xs font-medium text-muted-foreground">N</span>
-            <div className="absolute inset-4 transition-transform" style={{ transform: `rotate(${bearing}deg)` }}>
-              <div className="mx-auto h-1/2 w-1.5 rounded-full bg-primary" />
-              <div className="absolute -top-1 left-1/2 size-4 -translate-x-1/2 rotate-45 border-t-4 border-l-4 border-primary" />
-            </div>
-            <span className="size-3 rounded-full bg-foreground" aria-hidden />
-          </div>
+          <QiblaCompass bearing={bearing} label={t('qiblaBearing', { deg: Math.round(bearing) })} />
           <p className="text-lg font-semibold tabular-nums">{t('qiblaBearing', { deg: Math.round(bearing) })}</p>
           <p className="text-sm text-muted-foreground">{t('qiblaDistance', { km: Math.round(distanceToKaaba(loc)).toLocaleString(locale) })}</p>
           <p className="text-xs text-muted-foreground">{t('qiblaNoCompass')}</p>

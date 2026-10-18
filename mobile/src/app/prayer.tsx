@@ -8,6 +8,7 @@ import { AppHeader } from '@/components/app-header';
 import { Chips } from '@/components/chips';
 import { SwitchRow } from '@/components/controls';
 import { PrayerRing } from '@/components/prayer-ring';
+import { QiblaCompass } from '@/components/qibla-compass';
 import { Sheet } from '@/components/sheet';
 import { Stepper } from '@/components/stepper';
 import { Button } from '@/components/ui/button';
@@ -16,7 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
 import { cn } from '@/lib/utils';
 import type { TKey } from '@/lib/i18n';
-import { addMinutes, distanceToKaaba, formatTime, ishraqAt, METHODS, nightTimes, qiblaBearing, turnToward, type IqamaMinutes, type MadhabId } from '@/lib/prayer';
+import { ADHAN_PRAYERS, addMinutes, distanceToKaaba, formatTime, ishraqAt, METHODS, nightTimes, qiblaBearing, turnToward, type IqamaMinutes, type MadhabId } from '@/lib/prayer';
 import { ADHAN_DAYS } from '@/lib/reminders';
 import { PRAYER_KEYS, usePrayer } from '@/context/prayer';
 import { useSettings } from '@/context/settings';
@@ -91,7 +92,6 @@ export default function PrayerScreen() {
   const lngN = Number(lng);
   const coordsOk = lat.trim() !== '' && lng.trim() !== '' && Math.abs(latN) <= 90 && Math.abs(lngN) <= 180;
   const bearing = loc ? qiblaBearing(loc) : 0;
-  const needle = heading === null ? bearing : bearing - heading;
   const turn = heading === null ? null : turnToward(heading, bearing);
   const facing = turn !== null && Math.abs(turn) < 5;
   const methodName = (id: string) => { const m = METHODS.find(x => x.id === id); return m ? (isRTL ? m.ar : m.en) : id; };
@@ -159,7 +159,7 @@ export default function PrayerScreen() {
                       <Icon as={r.icon} className={cn('size-6', current ? 'text-gold' : 'text-muted-foreground')} />
                     </View>
                     <View className="flex-1 items-end">
-                      <Text className="text-2xl font-semibold" style={{ writingDirection: 'ltr' }}>{formatTime(r.at, locale)}</Text>
+                      <Text className="text-2xl font-semibold" style={{ writingDirection: 'ltr', lineHeight: 42, paddingVertical: 3 }}>{formatTime(r.at, locale)}</Text>
                       {r.sub ? <Text className="text-sm text-muted-foreground">{r.sub.label}: <Text className="text-sm text-muted-foreground" style={{ writingDirection: 'ltr' }}>{formatTime(r.sub.at, locale)}</Text></Text> : null}
                     </View>
                   </View>
@@ -176,14 +176,7 @@ export default function PrayerScreen() {
               <Icon as={Compass} className="size-4 text-muted-foreground" />
               <Text className="text-sm font-medium text-muted-foreground">{t('qiblaTitle')}</Text>
             </View>
-            <View className={cn('size-44 items-center justify-center rounded-full border-2', facing ? 'border-primary' : 'border-border')} accessibilityRole="image" accessibilityLabel={t('qiblaBearing', { deg: Math.round(bearing) })}>
-              <Text className="absolute top-1 text-xs font-medium text-muted-foreground">N</Text>
-              <View className="absolute size-36 items-center" style={{ transform: [{ rotate: `${needle}deg` }] }}>
-                <View className="size-4 rotate-45 border-l-4 border-t-4 border-primary" />
-                <View className="h-[62px] w-1.5 rounded-full bg-primary" />
-              </View>
-              <View className="size-3 rounded-full bg-foreground" />
-            </View>
+            <QiblaCompass bearing={bearing} heading={heading} facing={facing} label={t('qiblaBearing', { deg: Math.round(bearing) })} />
             <Text className="text-lg font-semibold">{t('qiblaBearing', { deg: Math.round(bearing) })}</Text>
             <Text className="text-sm text-muted-foreground">{t('qiblaDistance', { km: Math.round(distanceToKaaba(loc)).toLocaleString(locale) })}</Text>
             {turn === null ? (
@@ -260,6 +253,17 @@ export default function PrayerScreen() {
               <SwitchRow label={t('adhanHeading')} hint={`${t('adhanHint')} ${t('adhanSoundNote')}`} checked={adhan} onChange={prayer.setAdhan} disabled={!loc} />
               {adhan ? (
                 <>
+                  <View className="gap-1">
+                    <Text accessibilityRole="header" className="text-sm font-medium">{t('adhanWhich')}</Text>
+                    <Text className="text-xs leading-5 text-muted-foreground">{t('adhanWhichHint')}</Text>
+                  </View>
+                  {ADHAN_PRAYERS.map(k => (
+                    <SwitchRow key={k} label={t(PRAYER_KEYS[k])} checked={prayer.alerts[k]} onChange={on => prayer.setAlert(k, on)} />
+                  ))}
+                  <Text accessibilityRole="header" className="pt-2 text-sm font-medium">{t('adhanExtras')}</Text>
+                  <SwitchRow label={t('alertSunrise')} hint={t('alertSunriseHint')} checked={prayer.alerts.sunrise} onChange={on => prayer.setAlert('sunrise', on)} />
+                  <SwitchRow label={t('alertIshraq')} hint={t('alertIshraqHint')} checked={prayer.alerts.ishraq} onChange={on => prayer.setAlert('ishraq', on)} />
+                  <SwitchRow label={t('alertQiyam')} hint={t('alertQiyamHint')} checked={prayer.alerts.qiyam} onChange={on => prayer.setAlert('qiyam', on)} />
                   <SwitchRow label={t('adhanBeforeLabel')} checked={prayer.before} onChange={prayer.setBefore} />
                   {prayer.before ? (
                     <View className="gap-2">

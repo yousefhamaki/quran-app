@@ -16,10 +16,17 @@ export function setPlayerSheet(open: boolean) {
 
 export interface WordTarget { surah: number; ayah: number; index: number }
 let wordTarget: WordTarget | null = null;
+let recordTarget: WordTarget | null = null;
 export function setWordSheet(target: WordTarget | null) { wordTarget = target; emit(); }
 export function useWordSheet(): [WordTarget | null, (t: WordTarget | null) => void] {
   const t = useSyncExternalStore(cb => { listeners.add(cb); return () => { listeners.delete(cb); }; }, () => wordTarget, () => null);
   return [t, setWordSheet];
+}
+
+export function setRecordSheet(target: WordTarget | null) { recordTarget = target; emit(); }
+export function useRecordSheet(): [WordTarget | null, (t: WordTarget | null) => void] {
+  const t = useSyncExternalStore(cb => { listeners.add(cb); return () => { listeners.delete(cb); }; }, () => recordTarget, () => null);
+  return [t, setRecordSheet];
 }
 
 export function usePlayerSheet(): [boolean, (open: boolean) => void] {

@@ -57,7 +57,8 @@
       [
         "expo-audio",
         {
-          "enableBackgroundPlayback": true
+          "enableBackgroundPlayback": true,
+          "microphonePermission": "Allow Anspire Quran to use the microphone so you can record your own recitation."
         }
       ],
       "expo-status-bar",

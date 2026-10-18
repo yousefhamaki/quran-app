@@ -16,6 +16,9 @@ export type SettingsScope = 'auto' | 'mushaf' | 'general';
 
 interface UIContextValue {
   settingsOpen: boolean;
+  /** Ayah whose "record yourself" sheet is open. */
+  record: WordTarget | null;
+  setRecord: (w: WordTarget | null) => void;
   /** Word whose meaning sheet is open. */
   word: WordTarget | null;
   setWord: (w: WordTarget | null) => void;
@@ -53,6 +56,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
   const [settingsScope, setSettingsScope] = useState<SettingsScope>('auto');
   const [setupOpen, setSetupOpen] = useState(() => loadJSON<boolean>('quran.onboarded', false) !== true);
   const [word, setWord] = useState<WordTarget | null>(null);
+  const [record, setRecord] = useState<WordTarget | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
   const [playerOpen, setPlayerOpen] = useState(false);
   const [options, setOptionsState] = useState<Target | null>(null);
@@ -67,8 +71,8 @@ export function UIProvider({ children }: { children: ReactNode }) {
   const setRangeFor = useCallback((s: number | null, from?: number) => { setRangeForState(s); setRangeFromState(from ?? null); }, []);
 
   const value = useMemo(
-    () => ({ settingsOpen, word, setWord, settingsScope, setupOpen, setSettingsScope, setSetupOpen, accountOpen, playerOpen, options, tafsir, download, rangeFor, rangeFrom, setSettingsOpen, setAccountOpen, setPlayerOpen, setOptions, setTafsir, setDownload, setRangeFor }),
-    [settingsOpen, word, settingsScope, setupOpen, accountOpen, playerOpen, options, tafsir, download, rangeFor, rangeFrom, setOptions, setTafsir, setDownload, setRangeFor],
+    () => ({ settingsOpen, word, setWord, record, setRecord, settingsScope, setupOpen, setSettingsScope, setSetupOpen, accountOpen, playerOpen, options, tafsir, download, rangeFor, rangeFrom, setSettingsOpen, setAccountOpen, setPlayerOpen, setOptions, setTafsir, setDownload, setRangeFor }),
+    [settingsOpen, word, record, settingsScope, setupOpen, accountOpen, playerOpen, options, tafsir, download, rangeFor, rangeFrom, setOptions, setTafsir, setDownload, setRangeFor],
   );
   return <UIContext.Provider value={value}>{children}</UIContext.Provider>;
 }

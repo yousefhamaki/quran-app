@@ -27,6 +27,7 @@ import { DownloadSheet } from '@/components/sheets/download-sheet';
 import { SettingsSheets } from '@/components/sheets/settings-sheet';
 import { TafsirSheet } from '@/components/sheets/tafsir-sheet';
 import { WordSheet } from '@/components/sheets/word-sheet';
+import { RecordSheet } from '@/components/sheets/record-sheet';
 import { RangeSheet } from '@/components/sheets/range-sheet';
 import { initStorage, loadJSON, saveJSON } from '@/lib/storage';
 import { AuthProvider } from '@/context/auth';
@@ -105,6 +106,7 @@ function Shell() {
         <AyahSheet />
         <TafsirSheet />
         <WordSheet />
+        <RecordSheet />
         <DownloadSheet />
         <RangeSheet />
         <SettingsSheets />

@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import { parseTajweed, plainWords, tajweedColor, wordText } from '../src/lib/tajweed.ts';
 import { activeWordAt, estimateSegments, normalizeSegments, wordWeight } from '../src/lib/wordtiming.ts';
 import { HIZB_STARTS, annotate, annotationList, hizbOf, juzOf, pickPrompt, recordAnswer, scoreOf, weakest, weekCalendar } from '../src/lib/study.ts';
+import { ALERT_KEYS, DEFAULT_ALERTS, extraTimes, normalizeAlerts } from '../src/lib/prayer.ts';
 import { INTERVALS, addDays, completeLearn, createPlan, daysBetween, dueCards, learnTask, planStats, rateCard, upcoming } from '../src/lib/hifz.ts';
 
 // ---------------------------------------------------------------- tajweed
@@ -528,4 +529,25 @@ test('weekly review calendar counts overdue cards today', () => {
   assert.equal(cal.length, 7);
   assert.deepEqual(cal.map(d => d.count), [2, 0, 2, 0, 0, 0, 0]);
   assert.equal(cal[0].isToday, true);
+});
+
+// ---------------------------------------------------------------- prayer alerts
+test('alerts: five prayers on by default, extras opt in, old saves are merged', () => {
+  assert.equal(ALERT_KEYS.length, 8);
+  assert.deepEqual(Object.entries(DEFAULT_ALERTS).filter(([, on]) => on).map(([k]) => k), ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha']);
+  const merged = normalizeAlerts({ fajr: false, qiyam: true, bogus: true, asr: 'yes' as unknown as boolean });
+  assert.equal(merged.fajr, false);
+  assert.equal(merged.qiyam, true);
+  assert.equal(merged.asr, true, 'a non-boolean value falls back to the default');
+  assert.equal('bogus' in merged, false);
+  assert.deepEqual(normalizeAlerts(undefined), DEFAULT_ALERTS);
+});
+
+test('extra alert times: Ishraq is 20 minutes after sunrise', () => {
+  const sunrise = new Date('2026-10-15T03:30:00Z');
+  const lastThird = new Date('2026-10-15T23:10:00Z');
+  const t = extraTimes({ fajr: sunrise, sunrise, dhuhr: sunrise, asr: sunrise, maghrib: sunrise, isha: sunrise }, lastThird);
+  assert.equal(t.sunrise.getTime(), sunrise.getTime());
+  assert.equal(t.ishraq.getTime() - sunrise.getTime(), 20 * 60_000);
+  assert.equal(t.qiyam.getTime(), lastThird.getTime());
 });

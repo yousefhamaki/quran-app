@@ -5,6 +5,7 @@ import { Reader } from '@/components/reader';
 import { AyahSheet } from '@/components/ayah-sheet';
 import { TafsirSheet } from '@/components/tafsir-sheet';
 import { WordSheet } from '@/components/word-sheet';
+import { RecordSheet } from '@/components/record-sheet';
 import { DownloadSheet } from '@/components/download-sheet';
 import { PlayerBar } from '@/components/player-bar';
 import { SettingsSheet } from '@/components/settings-sheet';
@@ -174,6 +175,7 @@ export default function App() {
       </main>
 
       {surah && <AyahSheet surah={surah} ayah={sheetAyah} open={selectedAyah !== null} onOpenChange={o => !o && setSelectedAyah(null)} />}
+      <RecordSheet surahName={n => { const s = surahs.find(x => x.number === n); return s ? (ar ? s.name : s.englishName) : String(n); }} />
       <WordSheet surahName={n => { const s = surahs.find(x => x.number === n); return s ? (ar ? s.name : s.englishName) : String(n); }} />
       {surah && <TafsirSheet surah={surah} ayahs={ayahs} ayahNumber={tafsirAyah} onAyahChange={setTafsirAyah} onClose={() => setTafsirAyah(null)} />}
       {surah && <RangeSheet surah={surah} open={rangeOpen} onOpenChange={setRangeOpen} suggestFrom={route.ayah ?? undefined} />}

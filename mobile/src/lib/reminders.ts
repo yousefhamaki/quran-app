@@ -2,7 +2,7 @@ import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { addDays, dailyAyah, dateString, khatmahDay, plannedPortion, TOTAL_AYAHS, type Khatmah, type Ref } from './habit';
 import { ayahOfDayText } from './dailyayah';
-import { ADHAN_PRAYERS, timesFor, type Location, type MadhabId, type MethodId, type PrayerName } from './prayer';
+import { ADHAN_PRAYERS, extraTimes, nightTimes, timesFor, type AlertKey, type Location, type MadhabId, type MethodId, type PrayerName } from './prayer';
 
 export interface ReminderTexts {
   title: string;
@@ -12,6 +12,7 @@ export interface ReminderTexts {
 const AYAH_CHANNEL = 'daily-ayah';
 const ADHAN_CHANNEL = 'adhan-sound';
 const SOON_CHANNEL = 'prayer-soon';
+const EXTRA_CHANNEL = 'prayer-extra';
 /** File in assets/sounds (copied into the app by the expo-notifications plugin). */
 const ADHAN_SOUND = 'adhan.wav';
 const AYAH_PREFIX = 'ayah-';
@@ -93,6 +94,11 @@ export interface AdhanArgs {
   beforeMinutes: number;
   channelName: string;
   soonChannelName: string;
+  /** Which notifications are on (a prayer that is off gets neither its reminder nor its adhan). */
+  alerts: Record<AlertKey, boolean>;
+  extraChannelName: string;
+  /** Title and body of the sunrise, Ishraq and Qiyam notifications. */
+  extras: Record<'sunrise' | 'ishraq' | 'qiyam', { title: string; body: string }>;
   /** Localized prayer names. */
   names: Record<PrayerName, string>;
   /** "It is time for {name}" */
@@ -115,6 +121,7 @@ export async function syncAdhan(args: AdhanArgs): Promise<{ result: ReminderResu
   if (Platform.OS === 'android') {
     // Android fixes a channel's sound when it is created, so the adhan lives in its own (new) channel.
     await Notifications.setNotificationChannelAsync(ADHAN_CHANNEL, { name: args.channelName, importance: Notifications.AndroidImportance.HIGH, sound: ADHAN_SOUND });
+    await Notifications.setNotificationChannelAsync(EXTRA_CHANNEL, { name: args.extraChannelName, importance: Notifications.AndroidImportance.DEFAULT });
     await Notifications.setNotificationChannelAsync(SOON_CHANNEL, { name: args.soonChannelName, importance: Notifications.AndroidImportance.DEFAULT });
   }
 
@@ -123,8 +130,11 @@ export async function syncAdhan(args: AdhanArgs): Promise<{ result: ReminderResu
   for (let i = 0; i < ADHAN_DAYS; i++) {
     const day = addDays(today, i);
     const [y, m, d] = day.split('-').map(Number);
-    const times = timesFor(args.loc, new Date(y, m - 1, d, 12), args.method, args.madhab);
+    const noon = new Date(y, m - 1, d, 12);
+    const times = timesFor(args.loc, noon, args.method, args.madhab);
+    await scheduleExtras(args, day, noon, now);
     for (const name of ADHAN_PRAYERS) {
+      if (!args.alerts[name]) continue;
       const at = times[name];
       if (args.beforeMinutes > 0) {
         const soon = new Date(at.getTime() - args.beforeMinutes * 60_000);
@@ -145,6 +155,21 @@ export async function syncAdhan(args: AdhanArgs): Promise<{ result: ReminderResu
     }
   }
   return { result: 'scheduled', days: ADHAN_DAYS };
+}
+
+/** Sunrise, Ishraq and Qiyam al-layl: a normal-sound notification at each time the user switched on. */
+async function scheduleExtras(args: AdhanArgs, day: string, date: Date, now: number) {
+  if (!args.loc) return;
+  const times = timesFor(args.loc, date, args.method, args.madhab);
+  const at = extraTimes(times, nightTimes(args.loc, date, args.method, args.madhab).lastThird);
+  for (const key of ['sunrise', 'ishraq', 'qiyam'] as const) {
+    if (!args.alerts[key] || at[key].getTime() <= now) continue;
+    await Notifications.scheduleNotificationAsync({
+      identifier: `${ADHAN_PREFIX}x-${day}-${key}`,
+      content: { title: args.extras[key].title, body: args.extras[key].body, data: { alert: key } },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: at[key], channelId: EXTRA_CHANNEL },
+    });
+  }
 }
 
 const KHATMAH_PREFIX = 'khatmah-';

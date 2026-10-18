@@ -100,10 +100,10 @@ export function PrayerRing({ loc, method, madhab, hijriAdjust, times }: Props) {
         </View>
 
         <View className="absolute items-center gap-1">
-          <Text className="text-5xl font-semibold" style={{ writingDirection: 'ltr', lineHeight: 58 }}>{formatHMS(left)}</Text>
+          <Text className="text-5xl font-semibold" style={{ writingDirection: 'ltr', lineHeight: 72, paddingVertical: 6 }}>{formatHMS(left)}</Text>
           <Text className="text-base text-muted-foreground">{t('prayerLeftUntil')}</Text>
           <Text className={cn('text-5xl font-semibold', isRTL && 'font-quran')} style={{ lineHeight: isRTL ? 76 : 58, paddingVertical: isRTL ? 4 : 0 }}>{t(PRAYER_KEYS[win.next.name])}</Text>
-          <Text className="text-xl" style={{ writingDirection: 'ltr' }}>{formatTime(win.next.at, locale)}</Text>
+          <Text className="text-xl" style={{ writingDirection: 'ltr', lineHeight: 36, paddingVertical: 2 }}>{formatTime(win.next.at, locale)}</Text>
         </View>
       </View>
 

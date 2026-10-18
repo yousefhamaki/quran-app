@@ -73,9 +73,9 @@ export async function renderAyahCard({ ar, translation, reference, dark, transla
   let y = PAD + 50;
 
   ctx.fillStyle = gold;
-  ctx.font = '40px "Scheherazade New", serif';
+  ctx.font = '44px "Scheherazade New", serif';
   ctx.direction = 'rtl';
-  ctx.fillText('﷽', W / 2, y);
+  ctx.fillText('بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ', W / 2, y);
   y += 50;
 
   ctx.fillStyle = fg;

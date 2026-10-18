@@ -3,7 +3,7 @@ import { AppState } from 'react-native';
 import * as Location from 'expo-location';
 import { loadJSON, saveJSON } from '@/lib/storage';
 import { hijriOf, type HijriDate } from '@/lib/hijri';
-import { IQAMA_DEFAULTS, nextPrayer, timesFor, type DayTimes, type IqamaMinutes, type Location as Place, type MadhabId, type MethodId, type Next, type PrayerName } from '@/lib/prayer';
+import { DEFAULT_ALERTS, IQAMA_DEFAULTS, nextPrayer, normalizeAlerts, timesFor, type AlertKey, type DayTimes, type IqamaMinutes, type Location as Place, type MadhabId, type MethodId, type Next, type PrayerName } from '@/lib/prayer';
 import { syncAdhan, type ReminderResult } from '@/lib/reminders';
 import { useSettings } from '@/context/settings';
 import type { TKey } from '@/lib/i18n';
@@ -21,6 +21,8 @@ interface Stored {
   /** Also remind a few minutes before each prayer. */
   before: boolean;
   beforeMinutes: number;
+  /** Which prayers (and extras) notify. */
+  alerts: Record<AlertKey, boolean>;
 }
 
 export type LocateResult = 'ok' | 'denied' | 'unavailable';
@@ -40,13 +42,14 @@ interface PrayerContextValue extends Stored {
   setAdhan: (on: boolean) => void;
   setBefore: (on: boolean) => void;
   setBeforeMinutes: (n: number) => void;
+  setAlert: (key: AlertKey, on: boolean) => void;
   /** Ask the device for the current position. */
   locate: (lang?: 'ar' | 'en') => Promise<LocateResult>;
 }
 
 const PrayerContext = createContext<PrayerContextValue | null>(null);
 const KEY = 'quran.prayer';
-const DEFAULT: Stored = { loc: null, method: 'MuslimWorldLeague', madhab: 'shafi', hijriAdjust: 0, iqama: IQAMA_DEFAULTS, adhan: false, before: true, beforeMinutes: 10 };
+const DEFAULT: Stored = { loc: null, method: 'MuslimWorldLeague', madhab: 'shafi', hijriAdjust: 0, iqama: IQAMA_DEFAULTS, adhan: false, before: true, beforeMinutes: 10, alerts: DEFAULT_ALERTS };
 
 export const PRAYER_KEYS: Record<PrayerName, TKey> = {
   fajr: 'prayerFajr',
@@ -59,7 +62,7 @@ export const PRAYER_KEYS: Record<PrayerName, TKey> = {
 
 export function PrayerProvider({ children }: { children: ReactNode }) {
   const { t } = useSettings();
-  const [data, setData] = useState<Stored>(() => { const saved = loadJSON<Partial<Stored>>(KEY, {}); return { ...DEFAULT, ...saved, iqama: { ...IQAMA_DEFAULTS, ...saved.iqama } }; });
+  const [data, setData] = useState<Stored>(() => { const saved = loadJSON<Partial<Stored>>(KEY, {}); return { ...DEFAULT, ...saved, iqama: { ...IQAMA_DEFAULTS, ...saved.iqama }, alerts: normalizeAlerts(saved.alerts) }; });
   const [now, setNow] = useState(() => new Date());
   const [adhanStatus, setAdhanStatus] = useState<ReminderResult | null>(null);
 
@@ -78,6 +81,7 @@ export function PrayerProvider({ children }: { children: ReactNode }) {
   const setAdhan = useCallback((adhan: boolean) => setData(d => ({ ...d, adhan })), []);
   const setBefore = useCallback((before: boolean) => setData(d => ({ ...d, before })), []);
   const setBeforeMinutes = useCallback((beforeMinutes: number) => setData(d => ({ ...d, beforeMinutes })), []);
+  const setAlert = useCallback((key: AlertKey, on: boolean) => setData(d => ({ ...d, alerts: { ...d.alerts, [key]: on } })), []);
 
   const locate = useCallback(async (_lang?: 'ar' | 'en'): Promise<LocateResult> => {
     try {
@@ -100,7 +104,14 @@ export function PrayerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Keep the next week of prayer notifications up to date (on change, and each day the app is opened).
-  const { adhan, loc, method, madhab, before, beforeMinutes } = data;
+  const { adhan, loc, method, madhab, before, beforeMinutes, alerts } = data;
+  const alertsKey = JSON.stringify(alerts);
+  const extras = {
+    sunrise: { title: t('alertSunriseTitle'), body: t('alertSunriseBody') },
+    ishraq: { title: t('alertIshraqTitle'), body: t('alertIshraqBody') },
+    qiyam: { title: t('alertQiyamTitle'), body: t('alertQiyamBody') },
+  };
+  const extraChannelName = t('alertExtraChannel');
   const names = {
     fajr: t('prayerFajr'), sunrise: t('prayerSunrise'), dhuhr: t('prayerDhuhr'), asr: t('prayerAsr'), maghrib: t('prayerMaghrib'), isha: t('prayerIsha'),
   };
@@ -112,7 +123,7 @@ export function PrayerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     void syncAdhan({
-      enabled: adhan, loc, method, madhab, beforeMinutes: before ? beforeMinutes : 0, channelName, soonChannelName, names,
+      enabled: adhan, loc, method, madhab, beforeMinutes: before ? beforeMinutes : 0, channelName, soonChannelName, names, alerts, extras, extraChannelName,
       body: name => t('adhanBody', { name }),
       soonTitle: (name, n) => t('adhanSoonTitle', { name, n }),
       soonBody,
@@ -122,7 +133,7 @@ export function PrayerProvider({ children }: { children: ReactNode }) {
     return () => { cancelled = true; };
     // `names` is derived from `nameKey`
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [adhan, loc, method, madhab, before, beforeMinutes, channelName, soonChannelName, soonBody, nameKey, day]);
+  }, [adhan, loc, method, madhab, before, beforeMinutes, channelName, soonChannelName, soonBody, nameKey, day, alertsKey, extraChannelName]);
 
   const value = useMemo<PrayerContextValue>(
     () => ({
@@ -133,6 +144,7 @@ export function PrayerProvider({ children }: { children: ReactNode }) {
       hijri: hijriOf(now, data.hijriAdjust),
       adhanStatus,
       setMethod,
+      setAlert,
       setMadhab,
       setHijriAdjust,
       setIqama,
@@ -142,7 +154,7 @@ export function PrayerProvider({ children }: { children: ReactNode }) {
       setBeforeMinutes,
       locate,
     }),
-    [data, now, loc, method, madhab, adhanStatus, setMethod, setMadhab, setHijriAdjust, setIqama, setLocation, setAdhan, setBefore, setBeforeMinutes, locate],
+    [data, now, loc, method, madhab, adhanStatus, setMethod, setMadhab, setHijriAdjust, setIqama, setLocation, setAdhan, setBefore, setBeforeMinutes, setAlert, locate],
   );
 
   return <PrayerContext.Provider value={value}>{children}</PrayerContext.Provider>;

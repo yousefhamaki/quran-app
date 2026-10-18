@@ -163,7 +163,7 @@ export function SelfTestSheet({ open, onClose, initial }: Props) {
         {step === 'done' ? (
           <>
             <View className="items-center rounded-3xl bg-secondary p-6">
-              <Text className="text-4xl font-semibold text-primary">{fmt(score.percent)}%</Text>
+              <Text className="text-4xl font-semibold text-primary" style={{ lineHeight: 52, paddingVertical: 4 }}>{fmt(score.percent)}%</Text>
               <Text className="mt-1 text-sm text-secondary-foreground">{t('testScore', { correct: fmt(correct), asked: fmt(asked), percent: fmt(score.percent) })}</Text>
             </View>
             <Button size="lg" className="h-12 rounded-xl" onPress={() => setStep('setup')}><Text className="text-base">{t('testAgain')}</Text></Button>

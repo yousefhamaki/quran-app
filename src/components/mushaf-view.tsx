@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Bookmark, BookmarkCheck, BookOpenText, ChevronLeft, ChevronRight, ListTree, NotebookPen, Pause, Play, Share2, X } from 'lucide-react';
+import { Bookmark, BookmarkCheck, BookOpenText, ChevronLeft, ChevronRight, Brain, Eye, EyeOff, ListTree, Mic, NotebookPen, Pause, Play, Share2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { shareAyahCard } from '@/lib/share-card';
+import { setRecordSheet } from '@/lib/ui-store';
 import { Button } from '@/components/ui/button';
 import { JumpSheet } from '@/components/jump-sheet';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -108,7 +109,7 @@ function SurahHeader({ number, surahs }: { number: number; surahs: Surah[] }) {
 
 /** A page-by-page mushaf: ayahs run on like in the printed mushaf (Mushaf 1) or one ayah per block (Mushaf 2). */
 export function MushafView({ surahs, surah, ayah, onNavigate, onOpenTafsir }: Props) {
-  const { settings, mushaf, t } = useSettings();
+  const { settings, mushaf, memorize, setMemorize, t } = useSettings();
   const { resolvedTheme } = useTheme();
   const { markRead, isBookmarked, toggleBookmark, annotationOf, setHighlight, setNote } = useLibrary();
   const [jumpOpen, setJumpOpen] = useState(false);
@@ -168,7 +169,17 @@ export function MushafView({ surahs, surah, ayah, onNavigate, onOpenTafsir }: Pr
   const alignClass = mushaf.align === 'center' ? 'text-center' : 'text-start';
 
   // Tapping an ayah marks it and shows its actions (play, bookmark, tafsir); tapping it again lets go.
-  const pick = (s: number, n: number) => setPicked(p => (p?.surah === s && p.number === n ? null : { surah: s, number: n }));
+  // Memorize mode: ayahs are blurred until tapped; a second tap on a shown ayah selects it as usual.
+  const [revealed, setRevealed] = useState<Set<string>>(() => new Set());
+  useEffect(() => { setRevealed(new Set()); }, [page, memorize]);
+  const key = (s: number, n: number) => `${s}:${n}`;
+  const isHidden = (s: number, n: number) => memorize && !revealed.has(key(s, n));
+  const pageKeys = (segments ?? []).flatMap(seg => seg.ayahs.map(a => key(a.surah, a.number)));
+  const allShown = pageKeys.length > 0 && pageKeys.every(k => revealed.has(k));
+  const pick = (s: number, n: number) => {
+    if (isHidden(s, n)) { setRevealed(r => new Set(r).add(key(s, n))); return; }
+    setPicked(p => (p?.surah === s && p.number === n ? null : { surah: s, number: n }));
+  };
   useEffect(() => { setPicked(null); }, [page]);
   useEffect(() => { setNoteOpen(false); setNoteDraft(picked ? annotationOf(picked.surah, picked.number)?.note ?? '' : ''); }, [picked]); // eslint-disable-line react-hooks/exhaustive-deps
   const share = async () => {
@@ -219,6 +230,18 @@ export function MushafView({ surahs, surah, ayah, onNavigate, onOpenTafsir }: Pr
         </Button>
       </div>
 
+      {memorize && (
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-2xl bg-secondary px-3 py-2 text-sm" role="status">
+          <Brain className="size-4 shrink-0 text-primary" aria-hidden />
+          <span className="min-w-0 flex-1 text-secondary-foreground">{t('memorizeMushafHint')}</span>
+          <Button variant="outline" size="sm" className="h-10 gap-1.5 rounded-full" onClick={() => setRevealed(allShown ? new Set() : new Set(pageKeys))}>
+            {allShown ? <EyeOff className="size-4" aria-hidden /> : <Eye className="size-4" aria-hidden />}
+            {allShown ? t('hideAll') : t('revealAll')}
+          </Button>
+          <Button variant="ghost" size="sm" className="h-10 rounded-full" onClick={() => setMemorize(false)}>{t('memorizeOff')}</Button>
+        </div>
+      )}
+
       {failed ? (
         <div className="rounded-2xl border border-dashed p-8 text-center">
           <p className="mb-4 text-muted-foreground">{t('error')}</p>
@@ -245,7 +268,7 @@ export function MushafView({ surahs, surah, ayah, onNavigate, onOpenTafsir }: Pr
                           aria-label={`${t('ayah')} ${a.number}`}
                           className={cn('block w-full rounded-2xl px-4 py-3 transition-colors hover:bg-accent/60 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none', alignClass, isPlaying && 'ayah-playing bg-accent', !isPlaying && annotationOf(a.surah, a.number)?.color && HL_CLASS[annotationOf(a.surah, a.number)!.color!])}
                         >
-                          <span className={cn('font-quran', mushaf.wide ? 'leading-[2]' : 'leading-[1.9]')} style={textStyle}>{a.text}{mark(a.surah, a.number)}</span>
+                          <span className={cn('font-quran', mushaf.wide ? 'leading-[2]' : 'leading-[1.9]')} style={textStyle}><span aria-hidden={isHidden(a.surah, a.number) || undefined} className={cn('transition-[filter] duration-300', isHidden(a.surah, a.number) && 'blur-md select-none')}>{a.text}</span>{mark(a.surah, a.number)}</span>
                         </button>
                       </li>
                     );
@@ -265,7 +288,7 @@ export function MushafView({ surahs, surah, ayah, onNavigate, onOpenTafsir }: Pr
                         aria-label={`${t('ayah')} ${a.number}`}
                         className={cn('mx-1 cursor-pointer rounded-md px-1.5 py-0.5 [box-decoration-break:clone] transition-colors hover:bg-accent/60 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none', isPlaying && 'ayah-playing bg-accent', !isPlaying && annotationOf(a.surah, a.number)?.color && HL_CLASS[annotationOf(a.surah, a.number)!.color!])}
                       >
-                        {a.text}{mark(a.surah, a.number)}
+                        <span aria-hidden={isHidden(a.surah, a.number) || undefined} className={cn('transition-[filter] duration-300', isHidden(a.surah, a.number) && 'blur-md select-none')}>{a.text}</span>{mark(a.surah, a.number)}
                       </span>
                     );
                   })}
@@ -286,6 +309,9 @@ export function MushafView({ surahs, surah, ayah, onNavigate, onOpenTafsir }: Pr
               </Button>
               <Button size="icon" variant="ghost" className="size-11 rounded-full" aria-pressed={isBookmarked(picked.surah, picked.number)} aria-label={t('bookmark')} onClick={() => toggleBookmark(picked.surah, picked.number)}>
                 {isBookmarked(picked.surah, picked.number) ? <BookmarkCheck className="size-5 text-primary" aria-hidden /> : <Bookmark className="size-5" aria-hidden />}
+              </Button>
+              <Button size="icon" variant="ghost" className="size-11 rounded-full" aria-label={t('recordTitle')} onClick={() => setRecordSheet({ surah: picked.surah, ayah: picked.number, index: 0 })}>
+                <Mic className="size-5" aria-hidden />
               </Button>
               <Button size="icon" variant="ghost" className="size-11 rounded-full" aria-label={t('shareAyah')} onClick={() => void share()}>
                 <Share2 className="size-5" aria-hidden />

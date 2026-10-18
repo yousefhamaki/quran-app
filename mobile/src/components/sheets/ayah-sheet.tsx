@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
-import { Bookmark, BookmarkCheck, Play } from 'lucide-react-native';
+import { Bookmark, BookmarkCheck, Mic, Play, Share2 } from 'lucide-react-native';
+import { ShareCard, type ShareCardData } from '@/components/share-card';
+import { useAyahs } from '@/hooks/use-ayahs';
+import { useToast } from '@/context/toast';
 import { Sheet } from '@/components/sheet';
 import { ReciterList } from '@/components/reciter-list';
 import { Button } from '@/components/ui/button';
@@ -8,7 +11,7 @@ import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { cn } from '@/lib/utils';
 import { HIGHLIGHT_COLORS, type HighlightColor } from '@/lib/study';
-import { RECITERS } from '@/lib/quran';
+import { RECITERS, translationDir } from '@/lib/quran';
 import { useLibrary } from '@/context/library';
 import { usePlayer } from '@/context/player';
 import { useSettings } from '@/context/settings';
@@ -20,14 +23,17 @@ const HL_LABEL = { yellow: 'hlYellow', green: 'hlGreen', blue: 'hlBlue', pink: '
 
 /** Reciter choice + bookmark for one ayah. (Tafsir has its own sheet, one tap from each ayah.) */
 export function AyahSheet() {
-  const { options, setOptions } = useUI();
+  const { options, setOptions, setRecord } = useUI();
   const { settings, update, t, isRTL } = useSettings();
   const { isBookmarked, toggleBookmark, annotationOf, setHighlight, setNote } = useLibrary();
   const [draft, setDraft] = useState('');
+  const toast = useToast();
+  const [card, setCard] = useState<ShareCardData | null>(null);
   const { play } = usePlayer();
   const { byNumber } = useSurahs();
   const [choice, setChoice] = useState(settings.reciter);
   const surah = options ? byNumber(options.surah) : undefined;
+  const { ayahs } = useAyahs(options?.surah ?? null);
 
   // Each time the sheet opens, start from the saved reciter; the user picks, then presses Play.
   useEffect(() => { if (options) { setChoice(settings.reciter); setDraft(annotationOf(options.surah, options.ayah)?.note ?? ''); } }, [options]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -35,6 +41,16 @@ export function AyahSheet() {
   if (!options || !surah) return null;
   const marked = isBookmarked(options.surah, options.ayah);
   const chosen = RECITERS.find(r => r.id === choice);
+  const shareImage = () => {
+    const a = ayahs.find(x => x.number === options.ayah);
+    if (!a) return;
+    setCard({
+      ar: a.ar,
+      translation: settings.showTranslation ? a.en : undefined,
+      translationRtl: translationDir(settings.translation) === 'rtl',
+      reference: `${isRTL ? surah.name : surah.englishName} · ${options.ayah}`,
+    });
+  };
   const close = () => { setNote(options.surah, options.ayah, draft); setOptions(null); };
 
   return (
@@ -61,6 +77,14 @@ export function AyahSheet() {
           <Button variant="ghost" className="h-11 rounded-xl" onPress={() => toggleBookmark(options.surah, options.ayah)}>
             <Icon as={marked ? BookmarkCheck : Bookmark} className={marked ? 'size-5 text-gold' : 'size-5'} />
             <Text>{marked ? t('removeBookmark') : t('bookmark')}</Text>
+          </Button>
+          <Button variant="ghost" className="h-11 rounded-xl" onPress={() => { const target = { surah: options.surah, ayah: options.ayah, index: 0 }; close(); setRecord(target); }}>
+            <Icon as={Mic} className="size-5" />
+            <Text>{t('recordTitle')}</Text>
+          </Button>
+          <Button variant="ghost" className="h-11 rounded-xl" disabled={!!card || ayahs.length === 0} onPress={shareImage}>
+            <Icon as={Share2} className="size-5" />
+            <Text>{t('shareAyah')}</Text>
           </Button>
         </>
       }
@@ -89,6 +113,7 @@ export function AyahSheet() {
         />
       </View>
       <ReciterList value={choice} onChange={setChoice} />
+      {card ? <ShareCard {...card} onDone={ok => { setCard(null); if (!ok) toast.error(t('shareFailed')); }} /> : null}
     </Sheet>
   );
 }

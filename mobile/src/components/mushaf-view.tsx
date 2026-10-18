@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Pressable, ScrollView, View, useWindowDimensions, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import { useUniwind } from 'uniwind';
-import { ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { Brain, ChevronLeft, ChevronRight, Eye, EyeOff } from 'lucide-react-native';
 import { JumpSheet } from '@/components/sheets/jump-sheet';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
@@ -98,13 +98,24 @@ function SurahHeader({ number }: { number: number }) {
   );
 }
 
+/**
+ * Memorize mode: stands in for an ayah's text. The text itself is never drawn while hidden (nothing can leak through);
+ * every word becomes a stretched line of the same rough length, so you still sense how long the ayah is.
+ */
+const mask = (text: string) => text.split(/\s+/).filter(Boolean).map(w => 'ـ'.repeat(Math.max(2, Math.round(w.length * 0.9)))).join(' ');
+const ayahKey = (s: number, n: number) => `${s}:${n}`;
+
 interface PageProps {
   page: number;
   width: number;
+  memorize: boolean;
+  /** Ayahs the user has chosen to peek at ("surah:ayah"). */
+  revealed: Set<string>;
+  onReveal: (key: string) => void;
 }
 
 /** One mushaf page: ayahs run on like in the printed mushaf (Mushaf 1) or one ayah per block (Mushaf 2). */
-const MushafPage = memo(function MushafPage({ page, width }: PageProps) {
+const MushafPage = memo(function MushafPage({ page, width, memorize, revealed, onReveal }: PageProps) {
   const { settings, mushaf, t } = useSettings();
   const { theme } = useUniwind();
   const { playing } = usePlayer();
@@ -130,10 +141,16 @@ const MushafPage = memo(function MushafPage({ page, width }: PageProps) {
   }, [page, attempt]);
 
   // Tap an ayah for its options (play, bookmark, reciter); long-press for its tafsir.
-  const pick = (s: number, n: number) => { markRead(s, n); setOptions({ surah: s, ayah: n }); };
+  // While memorizing, the first tap on a hidden ayah shows it; a tap on a shown ayah opens its options.
+  const hiddenOf = (s: number, n: number) => memorize && !revealed.has(ayahKey(s, n));
+  const pick = (s: number, n: number) => {
+    if (hiddenOf(s, n)) { onReveal(ayahKey(s, n)); return; }
+    markRead(s, n);
+    setOptions({ surah: s, ayah: n });
+  };
   const explain = (s: number, n: number) => setTafsir({ surah: s, ayah: n });
   const lineHeight = size * (mushaf.wide ? 2.25 : 2.1);
-  const textStyle = { fontSize: size, lineHeight, textAlign: mushaf.align === 'center' ? ('center' as const) : ('right' as const), writingDirection: 'rtl' as const };
+  const textStyle = { fontSize: size, lineHeight, paddingBottom: size * 0.3, textAlign: mushaf.align === 'center' ? ('center' as const) : ('right' as const), writingDirection: 'rtl' as const };
   const num = (n: number) => `﴿${n.toLocaleString('ar-EG')}﴾`;
 
   return (
@@ -166,8 +183,8 @@ const MushafPage = memo(function MushafPage({ page, width }: PageProps) {
                         className="rounded-2xl px-4 py-3 active:bg-accent/60"
                         style={bgOf(a.surah, a.number, isPlaying)}
                       >
-                        <Text className="font-quran" style={textStyle}>
-                          {a.text}{' '}
+                        <Text className={cn('font-quran', hiddenOf(a.surah, a.number) && 'text-muted-foreground/60')} style={textStyle}>
+                          {hiddenOf(a.surah, a.number) ? mask(a.text) : a.text}{' '}
                           <Text className="font-quran" style={{ fontSize: size * 0.6, color: numberColor }}>{num(a.number)}</Text>
                         </Text>
                       </Pressable>
@@ -187,7 +204,7 @@ const MushafPage = memo(function MushafPage({ page, width }: PageProps) {
                         accessibilityLabel={`${t('ayah')} ${a.number}`}
                         style={bgOf(a.surah, a.number, isPlaying)}
                       >
-                        {a.text}{' '}
+                        <Text className={cn('font-quran', hiddenOf(a.surah, a.number) && 'text-muted-foreground/60')}>{hiddenOf(a.surah, a.number) ? mask(a.text) : a.text}</Text>{' '}
                         <Text className="font-quran" style={{ fontSize: size * 0.6, color: numberColor }}>{num(a.number)}{annotationOf(a.surah, a.number)?.note ? ' ✎' : ''}</Text>{' '}
                       </Text>
                     );
@@ -212,9 +229,11 @@ interface Props {
 
 /** A page-by-page mushaf you flip by swiping (page 1 on the right, like a printed mushaf). */
 export function MushafView({ surah, ayah, onNavigate }: Props) {
-  const { t } = useSettings();
+  const { t, memorize, setMemorize } = useSettings();
   const { markRead } = useLibrary();
   const { width } = useWindowDimensions();
+  const [revealed, setRevealed] = useState<Set<string>>(() => new Set());
+  const reveal = useCallback((key: string) => setRevealed(r => new Set(r).add(key)), []);
   const list = useRef<FlatList<number>>(null);
   const [jumpOpen, setJumpOpen] = useState(false);
   const target = pageOfIndex(indexOf(surah, ayah));
@@ -234,10 +253,21 @@ export function MushafView({ surah, ayah, onNavigate }: Props) {
     if (target !== pageRef.current) { pageRef.current = target; setPage(target); show(target, false); }
   }, [target, show]);
 
+  // Showing or hiding the whole page while memorizing.
+  const [pageKeys, setPageKeys] = useState<string[]>([]);
+  useEffect(() => { setRevealed(new Set()); }, [memorize]);
+  useEffect(() => {
+    let cancelled = false;
+    void loadPage(page).then(segs => !cancelled && setPageKeys(segs.flatMap(sg => sg.ayahs.map(a => ayahKey(a.surah, a.number))))).catch(() => {});
+    return () => { cancelled = true; };
+  }, [page]);
+  const allShown = pageKeys.length > 0 && pageKeys.every(k => revealed.has(k));
+
   const settle = (p: number) => {
     if (p === pageRef.current) return;
     pageRef.current = p;
     setPage(p);
+    setRevealed(new Set());
     const first = locate(pageRange(p)[0]);
     markRead(first.surah, first.ayah);
     onNavigate(first.surah, first.ayah);
@@ -262,8 +292,26 @@ export function MushafView({ surah, ayah, onNavigate }: Props) {
           <Icon as={ChevronRight} className="size-5" />
         </Button>
       </View>
+      {memorize ? (
+        <View accessibilityRole="summary" className="mx-3 mb-2 gap-2 rounded-2xl bg-secondary px-3 py-2">
+          <View className="flex-row items-center gap-2">
+            <Icon as={Brain} className="size-4 text-primary" />
+            <Text className="flex-1 text-sm text-secondary-foreground">{t('memorizeMushafHint')}</Text>
+          </View>
+          <View className="flex-row gap-2">
+            <Button variant="outline" className="h-10 rounded-full px-4" onPress={() => setRevealed(allShown ? new Set() : new Set(pageKeys))}>
+              <Icon as={allShown ? EyeOff : Eye} className="size-4" />
+              <Text className="text-sm">{allShown ? t('hideAll') : t('revealAll')}</Text>
+            </Button>
+            <Button variant="ghost" className="h-10 rounded-full px-4" onPress={() => setMemorize(false)}>
+              <Text className="text-sm">{t('memorizeOff')}</Text>
+            </Button>
+          </View>
+        </View>
+      ) : null}
       <FlatList
         ref={list}
+        extraData={[memorize, revealed]}
         data={data}
         keyExtractor={p => String(p)}
         horizontal
@@ -277,7 +325,7 @@ export function MushafView({ surah, ayah, onNavigate }: Props) {
         maxToRenderPerBatch={2}
         removeClippedSubviews
         onMomentumScrollEnd={onEnd}
-        renderItem={({ item }) => <MushafPage page={item} width={width} />}
+        renderItem={({ item }) => <MushafPage page={item} width={width} memorize={memorize} revealed={revealed} onReveal={reveal} />}
       />
       <JumpSheet
         open={jumpOpen}

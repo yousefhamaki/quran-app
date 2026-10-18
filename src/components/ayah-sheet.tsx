@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Bookmark, BookmarkCheck, Play, Share2 } from 'lucide-react';
+import { Bookmark, BookmarkCheck, Mic, Play, Share2 } from 'lucide-react';
+import { setRecordSheet } from '@/lib/ui-store';
 import { toast } from 'sonner';
 import { shareAyahCard } from '@/lib/share-card';
 import { translationDir } from '@/lib/quran';
@@ -76,6 +77,9 @@ export function AyahSheet({ surah, ayah, open, onOpenChange }: Props) {
           <Button variant="ghost" className="h-11 w-full justify-center gap-2 rounded-xl" onClick={() => ayah && toggleBookmark(surah.number, number)}>
             {marked ? <BookmarkCheck className="size-5 text-gold" aria-hidden /> : <Bookmark className="size-5" aria-hidden />}
             {marked ? t('removeBookmark') : t('bookmark')}
+          </Button>
+          <Button variant="ghost" className="h-11 w-full justify-center gap-2 rounded-xl" onClick={() => { onOpenChange(false); setRecordSheet({ surah: surah.number, ayah: number, index: 0 }); }}>
+            <Mic className="size-5" aria-hidden /> {t('recordTitle')}
           </Button>
           <Button variant="ghost" className="h-11 w-full justify-center gap-2 rounded-xl" onClick={() => void share()}>
             <Share2 className="size-5" aria-hidden /> {t('shareAyah')}

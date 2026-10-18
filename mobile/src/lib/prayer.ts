@@ -56,6 +56,26 @@ export const ADHAN_PRAYERS: PrayerName[] = ['fajr', 'dhuhr', 'asr', 'maghrib', '
 
 export type DayTimes = Record<PrayerName, Date>;
 
+/** Everything the user can switch a notification on or off for: the five prayers (with the adhan) and three extras. */
+export type AlertKey = 'fajr' | 'dhuhr' | 'asr' | 'maghrib' | 'isha' | 'sunrise' | 'ishraq' | 'qiyam';
+export const ALERT_KEYS: AlertKey[] = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha', 'sunrise', 'ishraq', 'qiyam'];
+/** The extras are voluntary: sunrise, the Ishraq prayer (20 minutes after sunrise) and Qiyam al-layl (last third of the night). */
+export const EXTRA_ALERTS: AlertKey[] = ['sunrise', 'ishraq', 'qiyam'];
+/** The five prayers are on by default; the extras are opt-in. */
+export const DEFAULT_ALERTS: Record<AlertKey, boolean> = { fajr: true, dhuhr: true, asr: true, maghrib: true, isha: true, sunrise: false, ishraq: false, qiyam: false };
+
+/** Saved alerts merged over the defaults (older saves have none, unknown keys are dropped). */
+export function normalizeAlerts(saved: Partial<Record<string, boolean>> | undefined | null): Record<AlertKey, boolean> {
+  const out = { ...DEFAULT_ALERTS };
+  for (const k of ALERT_KEYS) if (typeof saved?.[k] === 'boolean') out[k] = saved[k] as boolean;
+  return out;
+}
+
+/** When each extra fires on the day of `date`: sunrise, Ishraq, and Qiyam (start of the last third of that night). */
+export function extraTimes(times: DayTimes, lastThird: Date): Record<'sunrise' | 'ishraq' | 'qiyam', Date> {
+  return { sunrise: times.sunrise, ishraq: new Date(times.sunrise.getTime() + 20 * 60_000), qiyam: lastThird };
+}
+
 function params(method: MethodId, madhab: MadhabId): CalculationParameters {
   const p = CalculationMethod[method]();
   p.madhab = madhab === 'hanafi' ? Madhab.Hanafi : Madhab.Shafi;
