@@ -18,6 +18,7 @@ A premium, bilingual (Arabic / English) Quran web app. Read any surah, tap an ay
 - **Word-by-word highlighting** while the audio plays (exact Quran.com timestamps for Alafasy, Abdul Basit, Husary, Minshawi, Tablawi, Sudais, Shuraym and Shatri; estimated for the others) and **tajweed colours** with a built-in colour guide
 - **Daily screen** with three sections: **Daily reading** (ayah of the day, streak, its own reminder), **Khatmah** (finish the Quran in N days with a progress ring, today's portion with catch-up, and a **separate reminder** that carries the day's portion) and **Completed khatmahs** (a history with dates, days taken and early/late versus the plan). Finishing a khatmah offers the **dua for completing the Quran**
 - **Reading streak** (reading or listening counts) and an **ayah of the day**
+- **Alarm mode** for the daily reading and Khatmah reminders (Android): it rings with the alarm sound and vibration, over the lock screen, until you press **Stop**; **Snooze** (5–30 minutes) from the notification or the in-app sheet; today's alarm is skipped if you already read; alarms survive a reboot. On iPhone, where an app cannot ring until stopped, it repeats a few times instead
 - **Daily reminder** at a time you choose with the ayah of the day (phone app: works when closed; web: only while the page is open)
 - **Home-screen widget** "Ayah of the day" on Android (iOS widget is set up but needs a Mac build to test)
 - **Download several surahs or a whole juz** as a queue (Settings > Offline), with progress and cancel

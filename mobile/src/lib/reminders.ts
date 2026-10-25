@@ -2,12 +2,27 @@ import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { addDays, dailyAyah, dateString, khatmahDay, plannedPortion, TOTAL_AYAHS, type Khatmah, type Ref } from './habit';
 import { ayahOfDayText } from './dailyayah';
+import { alarmSupported, cancelAlarms, scheduleAlarms, type AlarmItem } from '../../modules/daily-alarm';
 import { ADHAN_PRAYERS, extraTimes, nightTimes, timesFor, type AlertKey, type Location, type MadhabId, type MethodId, type PrayerName } from './prayer';
 
 export interface ReminderTexts {
   title: string;
   fallback: string;
 }
+
+/** Alarm mode: the reminder rings until stopped (Android) or repeats a few times (iPhone). */
+export interface AlarmOptions {
+  alarm?: boolean;
+  snoozeMinutes?: number;
+  snoozeLabel?: string;
+  stopLabel?: string;
+  /** Today's alarm is skipped (the user has already read). */
+  skipToday?: boolean;
+}
+
+/** iPhone cannot ring until stopped: the day's notification is followed by a few more, `snoozeMinutes` apart. */
+const IOS_REPEATS = 5;
+const IOS_REPEAT_DAYS = 3;
 
 const AYAH_CHANNEL = 'daily-ayah';
 const ADHAN_CHANNEL = 'adhan-sound';
@@ -53,9 +68,10 @@ const localDate = (day: string, hour: number, minute: number) => {
  * Replaces the scheduled "ayah of the day" reminders: one notification per day at hour:minute for the next two weeks,
  * each carrying that day's ayah. Called when the setting changes and whenever the app opens, so the window keeps moving.
  */
-export async function syncReminder(args: { enabled: boolean; hour: number; minute: number } & ReminderTexts): Promise<ReminderResult> {
+export async function syncReminder(args: { enabled: boolean; hour: number; minute: number } & ReminderTexts & AlarmOptions): Promise<ReminderResult> {
   if (Platform.OS === 'web') return 'unsupported';
   await cancelPrefix(AYAH_PREFIX);
+  cancelAlarms('werd');
   if (!args.enabled) return 'off';
   if (!(await askNotificationPermission())) return 'denied';
 
@@ -65,12 +81,29 @@ export async function syncReminder(args: { enabled: boolean; hour: number; minut
 
   const now = Date.now();
   const today = dateString();
+  const alarmItems: AlarmItem[] = [];
   for (let i = 0; i < AYAH_DAYS; i++) {
     const day = addDays(today, i);
     const at = localDate(day, args.hour, args.minute);
     if (at.getTime() <= now) continue;
+    if (args.alarm && i === 0 && args.skipToday) continue;
     const ref = dailyAyah(day);
     const text = await ayahOfDayText(day);
+
+    if (args.alarm && alarmSupported) {
+      alarmItems.push({
+        id: day,
+        at: at.getTime(),
+        title: args.title,
+        body: text ? `${text.ar}\n${text.surahAr} · ${ref.ayah}` : args.fallback,
+        snoozeMinutes: args.snoozeMinutes ?? 10,
+        snoozeLabel: args.snoozeLabel ?? 'Snooze',
+        stopLabel: args.stopLabel ?? 'Stop',
+      });
+      continue;
+    }
+    if (args.alarm && i < IOS_REPEAT_DAYS) await scheduleRepeats(`${AYAH_PREFIX}${day}-r`, at, args.snoozeMinutes ?? 10, args.title, text?.ar ?? args.fallback, AYAH_CHANNEL);
+
     await Notifications.scheduleNotificationAsync({
       identifier: `${AYAH_PREFIX}${day}`,
       content: {
@@ -82,7 +115,28 @@ export async function syncReminder(args: { enabled: boolean; hour: number; minut
       trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: at, channelId: AYAH_CHANNEL },
     });
   }
+  if (alarmItems.length > 0) scheduleAlarms('werd', alarmItems);
   return 'scheduled';
+}
+
+/** The follow-up notifications of an alarm on a platform without a real alarm (they are cancelled when the user reads). */
+async function scheduleRepeats(prefix: string, first: Date, everyMinutes: number, title: string, body: string, channelId: string) {
+  for (let k = 1; k <= IOS_REPEATS; k++) {
+    const at = new Date(first.getTime() + k * everyMinutes * 60_000);
+    await Notifications.scheduleNotificationAsync({
+      identifier: `${prefix}${k}`,
+      content: { title, body, data: { repeat: k } },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: at, channelId },
+    });
+  }
+}
+
+/** The user has read today: drop today's follow-up notifications (the iPhone fallback of the alarm). */
+export async function cancelTodayRepeats() {
+  if (Platform.OS === 'web') return;
+  const day = dateString();
+  await cancelPrefix(`${AYAH_PREFIX}${day}-r`);
+  await cancelPrefix(`${KHATMAH_PREFIX}${day}-r`);
 }
 
 export interface AdhanArgs {
@@ -176,7 +230,7 @@ const KHATMAH_PREFIX = 'khatmah-';
 const KHATMAH_CHANNEL = 'khatmah';
 const KHATMAH_DAYS = 14;
 
-export interface KhatmahReminderArgs {
+export interface KhatmahReminderArgs extends AlarmOptions {
   enabled: boolean;
   hour: number;
   minute: number;
@@ -194,6 +248,7 @@ export interface KhatmahReminderArgs {
 export async function syncKhatmahReminder(args: KhatmahReminderArgs): Promise<ReminderResult> {
   if (Platform.OS === 'web') return 'unsupported';
   await cancelPrefix(KHATMAH_PREFIX);
+  cancelAlarms('khatmah');
   const k = args.khatmah;
   if (!args.enabled || !k || k.read >= TOTAL_AYAHS) return 'off';
   if (!(await askNotificationPermission())) return 'denied';
@@ -205,11 +260,27 @@ export async function syncKhatmahReminder(args: KhatmahReminderArgs): Promise<Re
   const now = Date.now();
   const today = dateString();
   const firstDay = khatmahDay(k, today);
+  const khatmahAlarms: AlarmItem[] = [];
   for (let i = 0; i < KHATMAH_DAYS; i++) {
     const day = addDays(today, i);
     const at = localDate(day, args.hour, args.minute);
     if (at.getTime() <= now) continue;
+    if (args.alarm && i === 0 && args.skipToday) continue;
     const portion = plannedPortion(k, firstDay + i, i === 0 ? k.read : undefined);
+    const text = portion ? args.body(portion.from, portion.to, portion.count) : args.fallback;
+    if (args.alarm && alarmSupported) {
+      khatmahAlarms.push({
+        id: day,
+        at: at.getTime(),
+        title: args.title,
+        body: text,
+        snoozeMinutes: args.snoozeMinutes ?? 10,
+        snoozeLabel: args.snoozeLabel ?? 'Snooze',
+        stopLabel: args.stopLabel ?? 'Stop',
+      });
+      continue;
+    }
+    if (args.alarm && i < IOS_REPEAT_DAYS) await scheduleRepeats(`${KHATMAH_PREFIX}${day}-r`, at, args.snoozeMinutes ?? 10, args.title, text, KHATMAH_CHANNEL);
     await Notifications.scheduleNotificationAsync({
       identifier: `${KHATMAH_PREFIX}${day}`,
       content: {
@@ -220,5 +291,6 @@ export async function syncKhatmahReminder(args: KhatmahReminderArgs): Promise<Re
       trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: at, channelId: KHATMAH_CHANNEL },
     });
   }
+  if (khatmahAlarms.length > 0) scheduleAlarms('khatmah', khatmahAlarms);
   return 'scheduled';
 }

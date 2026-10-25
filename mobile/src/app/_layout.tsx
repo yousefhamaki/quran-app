@@ -21,6 +21,7 @@ import { NotoSansArabic_400Regular, NotoSansArabic_500Medium, NotoSansArabic_600
 import { BottomNav, NAV_HEIGHT, useShowNav } from '@/components/bottom-nav';
 import { PlayerBar, PlayerSheet } from '@/components/player';
 import { Onboarding } from '@/components/sheets/onboarding';
+import { AlarmRinging } from '@/components/sheets/alarm-ringing';
 import { AccountSheet } from '@/components/sheets/account-sheet';
 import { AyahSheet } from '@/components/sheets/ayah-sheet';
 import { DownloadSheet } from '@/components/sheets/download-sheet';
@@ -113,6 +114,7 @@ function Shell() {
         <OrientationGuard />
         <AccountSheet />
         <Onboarding />
+        <AlarmRinging />
         <PlayerSheet />
         <FollowAutoSurah />
         <OpenReminderTarget />

@@ -20,7 +20,7 @@ import {
   type KhatmahStats,
   type Ref,
 } from '@/lib/habit';
-import { syncKhatmahReminder, syncReminder, type ReminderResult } from '@/lib/reminders';
+import { cancelTodayRepeats, syncKhatmahReminder, syncReminder, type ReminderResult } from '@/lib/reminders';
 import { refreshWidgets } from '@/lib/widgets';
 import { usePlayer } from '@/context/player';
 import { useSettings } from '@/context/settings';
@@ -30,6 +30,10 @@ export interface Reminder {
   enabled: boolean;
   hour: number;
   minute: number;
+  /** Alarm mode: rings (with sound and vibration) until the user stops it. */
+  alarm?: boolean;
+  /** Minutes the alarm waits after Snooze. */
+  snooze?: number;
 }
 
 interface Stored {
@@ -102,6 +106,7 @@ export function HabitProvider({ children }: { children: ReactNode }) {
       const days = recordDay(d.days, dateString());
       return days === d.days ? d : { ...d, days };
     });
+    void cancelTodayRepeats(); // an iPhone alarm stops repeating once you have read
   }, []);
 
   // Listening counts as reading.
@@ -111,16 +116,19 @@ export function HabitProvider({ children }: { children: ReactNode }) {
   useEffect(() => { void refreshWidgets(); }, [today]);
 
   // (Re)schedule the next two weeks of reminders: on change, on a new day and each time the app opens.
-  const { enabled, hour, minute } = data.reminder;
+  const { enabled, hour, minute, alarm = false, snooze = 10 } = data.reminder;
+  const readToday = data.days.includes(today);
+  const snoozeLabel = t('alarmSnooze');
+  const stopLabel = t('alarmStop');
   const title = t('reminderTitle');
   const fallback = t('reminderBodyFallback');
   useEffect(() => {
     let cancelled = false;
-    syncReminder({ enabled, hour, minute, title, fallback })
+    syncReminder({ enabled, hour, minute, title, fallback, alarm, snoozeMinutes: snooze, snoozeLabel, stopLabel, skipToday: readToday })
       .then(r => !cancelled && setReminderStatus(r))
       .catch(() => !cancelled && setReminderStatus(null));
     return () => { cancelled = true; };
-  }, [enabled, hour, minute, title, fallback, today]);
+  }, [enabled, hour, minute, title, fallback, today, alarm, snooze, snoozeLabel, stopLabel, readToday]);
 
   // The khatmah reminder: a second, separate notification with the day's portion.
   const kr = data.khatmahReminder;
@@ -132,12 +140,13 @@ export function HabitProvider({ children }: { children: ReactNode }) {
     const name = (n: number) => { const s = byNumber(n); return s ? (isRTL ? s.name : s.englishName) : `#${n}`; };
     syncKhatmahReminder({
       enabled: kr.enabled, hour: kr.hour, minute: kr.minute, khatmah: data.khatmah, title: kTitle, fallback: kFallback,
+      alarm: kr.alarm ?? false, snoozeMinutes: kr.snooze ?? 10, snoozeLabel, stopLabel, skipToday: readToday,
       body: (from, to, n) => t('khatmahReminderBody', { from: `${name(from.surah)} ${from.ayah}`, to: `${name(to.surah)} ${to.ayah}`, n }),
     }).then(r => !cancelled && setKhatmahReminderStatus(r)).catch(() => !cancelled && setKhatmahReminderStatus(null));
     return () => { cancelled = true; };
     // data.khatmah is summarised by khatmahSig
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kr.enabled, kr.hour, kr.minute, khatmahSig, kTitle, kFallback, isRTL, today]);
+  }, [kr.enabled, kr.hour, kr.minute, kr.alarm, kr.snooze, khatmahSig, kTitle, kFallback, isRTL, today, snoozeLabel, stopLabel, readToday]);
 
   const startKhatmah = useCallback((days: number) => setData(d => ({ ...d, history: archiveKhatmah(d.history, d.khatmah), khatmah: createKhatmah({ days, today: dateString() }) })), []);
   const finishToday = useCallback(() => {

@@ -17,6 +17,7 @@ import { approxPages, daysEarly, takenDays, TOTAL_AYAHS, type Ref } from '@/lib/
 import { fetchAyahText, type AyahText } from '@/lib/dailyayah';
 import type { ReminderResult } from '@/lib/reminders';
 import { useHabit, type Reminder } from '@/context/habit';
+import { alarmSupported, canScheduleExactAlarms, canUseFullScreenAlarm, openExactAlarmSettings, openFullScreenAlarmSettings, testAlarm } from '../../modules/daily-alarm';
 import { useSettings } from '@/context/settings';
 import { useSurahs } from '@/context/surahs';
 
@@ -72,6 +73,32 @@ function ReminderPanel({ title, hint, reminder, status, onChange }: ReminderPane
       </View>
       {reminder.enabled ? (
         <View className="gap-3">
+          <SwitchRow label={t('alarmMode')} hint={`${t('alarmModeHint')}${alarmSupported ? '' : ` ${t('alarmModeHintIos')}`}`} checked={!!reminder.alarm} onChange={alarm => onChange({ ...reminder, alarm })} />
+          {reminder.alarm ? (
+            <View className="gap-3 rounded-2xl bg-secondary p-3">
+              <Text className="text-sm font-medium">{t('alarmSnoozeFor')}</Text>
+              <Chips<number> label={t('alarmSnoozeFor')} value={reminder.snooze ?? 10} onChange={snooze => onChange({ ...reminder, snooze })} options={[5, 10, 15, 20, 30].map(n => ({ value: n, label: t('iqamaMinutes', { n }) }))} />
+              <Text className="text-xs leading-5 text-muted-foreground">{t('alarmSkipsToday')}</Text>
+              {alarmSupported ? (
+                <>
+                  <Button variant="outline" className="h-11 rounded-xl" onPress={() => testAlarm({ title, body: hint, snoozeMinutes: reminder.snooze ?? 10, snoozeLabel: t('alarmSnooze'), stopLabel: t('alarmStop') })}>
+                    <Icon as={Bell} className="size-4" />
+                    <Text>{t('alarmTest')}</Text>
+                  </Button>
+                  {!canScheduleExactAlarms() ? (
+                    <Pressable onPress={openExactAlarmSettings} accessibilityRole="button" className="rounded-xl border border-destructive/40 p-3 active:bg-accent">
+                      <Text className="text-sm text-destructive">{t('alarmNeedsExact')} · {t('alarmOpenSettings')}</Text>
+                    </Pressable>
+                  ) : null}
+                  {!canUseFullScreenAlarm() ? (
+                    <Pressable onPress={openFullScreenAlarmSettings} accessibilityRole="button" className="rounded-xl border border-destructive/40 p-3 active:bg-accent">
+                      <Text className="text-sm text-destructive">{t('alarmNeedsFullScreen')} · {t('alarmOpenSettings')}</Text>
+                    </Pressable>
+                  ) : null}
+                </>
+              ) : null}
+            </View>
+          ) : null}
           <Text className="text-sm font-medium">{t('reminderTime')}: {String(reminder.hour).padStart(2, '0')}:{String(reminder.minute).padStart(2, '0')}</Text>
           <Stepper label={`${t('reminderTime')} (h)`} value={reminder.hour} min={0} max={23} onChange={h => onChange({ ...reminder, hour: h })} />
           <Stepper label={`${t('reminderTime')} (min)`} value={reminder.minute} min={0} max={59} onChange={m => onChange({ ...reminder, minute: m })} big />

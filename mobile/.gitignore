@@ -21,3 +21,8 @@ ios/*.xcworkspace/xcuserdata/
 .env
 .env.local
 builds/
+
+# Build output of local native modules
+modules/*/android/build/
+modules/*/android/.gradle/
+modules/*/android/.cxx/
