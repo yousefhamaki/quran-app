@@ -25,11 +25,16 @@ const IOS_REPEATS = 5;
 const IOS_REPEAT_DAYS = 3;
 
 const AYAH_CHANNEL = 'daily-ayah';
-const ADHAN_CHANNEL = 'adhan-sound';
+// Android fixes a channel's sound when it is created, so the full-length adhan needs its own (new) channel.
+const ADHAN_CHANNEL = 'adhan-full';
+const OLD_ADHAN_CHANNEL = 'adhan-sound';
 const SOON_CHANNEL = 'prayer-soon';
 const EXTRA_CHANNEL = 'prayer-extra';
-/** File in assets/sounds (copied into the app by the expo-notifications plugin). */
-const ADHAN_SOUND = 'adhan.wav';
+/**
+ * Files in assets/sounds (copied into the app by the expo-notifications plugin). Android plays the whole adhan (about
+ * 2.5 minutes); iOS only plays notification sounds up to 30 seconds, so it gets the short version.
+ */
+const ADHAN_SOUND = Platform.OS === 'android' ? 'adhan_full.ogg' : 'adhan.wav';
 const AYAH_PREFIX = 'ayah-';
 const ADHAN_PREFIX = 'adhan-';
 /** How many days ahead are scheduled (each day gets its own notifications); refreshed every time the app opens. */
@@ -174,6 +179,7 @@ export async function syncAdhan(args: AdhanArgs): Promise<{ result: ReminderResu
 
   if (Platform.OS === 'android') {
     // Android fixes a channel's sound when it is created, so the adhan lives in its own (new) channel.
+    await Notifications.deleteNotificationChannelAsync(OLD_ADHAN_CHANNEL).catch(() => {});
     await Notifications.setNotificationChannelAsync(ADHAN_CHANNEL, { name: args.channelName, importance: Notifications.AndroidImportance.HIGH, sound: ADHAN_SOUND });
     await Notifications.setNotificationChannelAsync(EXTRA_CHANNEL, { name: args.extraChannelName, importance: Notifications.AndroidImportance.DEFAULT });
     await Notifications.setNotificationChannelAsync(SOON_CHANNEL, { name: args.soonChannelName, importance: Notifications.AndroidImportance.DEFAULT });
@@ -293,4 +299,20 @@ export async function syncKhatmahReminder(args: KhatmahReminderArgs): Promise<Re
   }
   if (khatmahAlarms.length > 0) scheduleAlarms('khatmah', khatmahAlarms);
   return 'scheduled';
+}
+
+/** Plays the adhan notification in a few seconds, so the user can hear what it sounds like. */
+export async function testAdhanNotification(args: { channelName: string; title: string; body: string; seconds?: number }): Promise<boolean> {
+  if (Platform.OS === 'web') return false;
+  if (!(await askNotificationPermission())) return false;
+  if (Platform.OS === 'android') {
+    await Notifications.deleteNotificationChannelAsync(OLD_ADHAN_CHANNEL).catch(() => {});
+    await Notifications.setNotificationChannelAsync(ADHAN_CHANNEL, { name: args.channelName, importance: Notifications.AndroidImportance.HIGH, sound: ADHAN_SOUND });
+  }
+  await Notifications.scheduleNotificationAsync({
+    identifier: `${ADHAN_PREFIX}test`,
+    content: { title: args.title, body: args.body, sound: ADHAN_SOUND, data: { adhan: 'test' } },
+    trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: args.seconds ?? 5, channelId: ADHAN_CHANNEL },
+  });
+  return true;
 }

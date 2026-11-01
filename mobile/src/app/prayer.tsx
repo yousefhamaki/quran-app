@@ -18,7 +18,7 @@ import { Text } from '@/components/ui/text';
 import { cn } from '@/lib/utils';
 import type { TKey } from '@/lib/i18n';
 import { ADHAN_PRAYERS, addMinutes, distanceToKaaba, formatTime, ishraqAt, METHODS, nightTimes, qiblaBearing, turnToward, type IqamaMinutes, type MadhabId } from '@/lib/prayer';
-import { ADHAN_DAYS } from '@/lib/reminders';
+import { ADHAN_DAYS, testAdhanNotification } from '@/lib/reminders';
 import { PRAYER_KEYS, usePrayer } from '@/context/prayer';
 import { useSettings } from '@/context/settings';
 
@@ -272,6 +272,15 @@ export default function PrayerScreen() {
                     </View>
                   ) : null}
                 </>
+              ) : null}
+              {adhan ? (
+                <View className="gap-2">
+                  <Button variant="outline" className="h-11 rounded-xl" onPress={() => void testAdhanNotification({ channelName: t('adhanHeading'), title: t('prayerDhuhr'), body: t('adhanTestBody') })}>
+                    <Icon as={Moon} className="size-4" />
+                    <Text>{t('adhanTest')}</Text>
+                  </Button>
+                  <Text className="text-xs leading-5 text-muted-foreground">{t('adhanFullNote')}</Text>
+                </View>
               ) : null}
               {adhan && adhanStatus === 'scheduled' ? <Text className="text-xs text-muted-foreground">{t('adhanScheduled', { n: ADHAN_DAYS })}</Text> : null}
               {adhan && adhanStatus === 'denied' ? <Text accessibilityRole="alert" className="text-sm text-destructive">{t('reminderDenied')}</Text> : null}

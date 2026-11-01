@@ -69,7 +69,8 @@
           "color": "#0b5d4b",
           "defaultChannel": "daily-ayah",
           "sounds": [
-            "./assets/sounds/adhan.wav"
+            "./assets/sounds/adhan.wav",
+            "./assets/sounds/adhan_full.ogg"
           ]
         }
       ],
