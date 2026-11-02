@@ -43,7 +43,6 @@ export function Onboarding() {
   const [located, setLocated] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [goal, setGoal] = useState<number | null>(null);
-  const [methodOpen, setMethodOpen] = useState(false);
   const last = step === STEPS - 1;
   const titles = [t('onboardWelcome'), t('onboardReciter'), t('onboardPrayer'), t('onboardGoal')];
   const methodName = METHODS.find(m => m.id === prayer.method);
@@ -122,23 +121,12 @@ export function Onboarding() {
               <Text className="text-base">{located ? t('onboardLocated') : busy ? t('prayerLocating') : t('prayerUseLocation')}</Text>
             </Button>
             {error ? <Text accessibilityRole="alert" className="text-sm text-destructive">{error}</Text> : null}
-            <View className="gap-2">
-              <Text className="text-sm font-medium">{t('prayerMethod')}</Text>
-              <Pressable onPress={() => setMethodOpen(v => !v)} accessibilityRole="button" accessibilityLabel={t('prayerMethod')} className="h-12 flex-row items-center justify-between rounded-xl border border-input bg-background px-4 active:bg-accent">
-                <Text numberOfLines={1} className="flex-1">{methodName ? (isRTL ? methodName.ar : methodName.en) : prayer.method}</Text>
-                <Icon as={ChevronDown} className="size-4 text-muted-foreground" />
-              </Pressable>
-              {methodOpen ? (
-                <View className="overflow-hidden rounded-xl border border-border">
-                  {METHODS.map((m, i) => (
-                    <Pressable key={m.id} onPress={() => { prayer.setMethod(m.id); setMethodOpen(false); }} accessibilityRole="radio" accessibilityState={{ selected: m.id === prayer.method }} className={cn('min-h-12 flex-row items-center gap-3 px-4 active:bg-accent', i > 0 && 'border-t border-border', m.id === prayer.method && 'bg-accent')}>
-                      <Text className="flex-1 text-sm">{isRTL ? m.ar : m.en}</Text>
-                      {m.id === prayer.method ? <Icon as={Check} className="size-4 text-primary" /> : null}
-                    </Pressable>
-                  ))}
-                </View>
-              ) : null}
-            </View>
+            {located || prayer.loc ? (
+              <View className="gap-1 rounded-2xl bg-secondary p-4">
+                <Text className="text-sm font-medium">{prayer.loc?.name ?? t('locationAutoTitle')}</Text>
+                <Text className="text-xs leading-5 text-secondary-foreground">{t('methodAutoHint')} · {methodName ? (isRTL ? methodName.ar : methodName.en) : prayer.method}</Text>
+              </View>
+            ) : null}
           </>
         ) : null}
 

@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { dictionaries, type Lang, type TKey } from '@/lib/i18n';
 import { RECITERS, TAFSIRS, migrateReciterId, normalizeReciterId, setTranslationEdition } from '@/lib/quran';
 import { loadJSON, saveJSON } from '@/lib/storage';
+import { snapFontSize } from '@/lib/mushaf-prefs';
 import { DEFAULT_MUSHAF, normalizeMushaf, type MushafPrefs } from '@/lib/mushaf-prefs';
 
 export interface Settings {
@@ -66,6 +67,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<Settings>(() => {
     const stored = { ...DEFAULT_SETTINGS, ...loadJSON<Partial<Settings>>(KEY, {}) };
     setTranslationEdition(stored.translation);
+    stored.fontSize = snapFontSize(stored.fontSize, DEFAULT_SETTINGS.fontSize);
     return { ...stored, reciter: normalizeReciterId(stored.reciter) };
   });
 

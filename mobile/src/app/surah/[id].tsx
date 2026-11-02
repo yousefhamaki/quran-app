@@ -16,6 +16,7 @@ import { MushafView } from '@/components/mushaf-view';
 import { useDownloads } from '@/context/downloads';
 import { useLibrary } from '@/context/library';
 import { usePlayer } from '@/context/player';
+import { useContentWidth } from '@/lib/layout';
 import { useSettings } from '@/context/settings';
 import { useSurahs } from '@/context/surahs';
 import { useUI } from '@/context/ui';
@@ -29,7 +30,7 @@ const mark = (n: number) => `﴿${n.toLocaleString('ar-EG')}﴾`;
  * follow the real length, so you still sense how long the ayah is.
  */
 function HiddenAyah({ text, size, label }: { text: string; size: number; label: string }) {
-  const { width } = useWindowDimensions();
+  const width = useContentWidth();
   const lineWidth = Math.max(120, width - 48);
   const estimated = text.length * size * 0.42; // average Arabic glyph advance
   const lines = Math.max(1, Math.ceil(estimated / lineWidth));
@@ -217,8 +218,11 @@ export default function Reader() {
                       className="font-quran"
                       style={{
                         fontSize: size,
-                        lineHeight: size * 1.25,
-                        paddingVertical: size * 0.35,
+                        // This Quran font is tall (long tails and stacked marks): a tighter line height clips the
+                        // letters at the bottom of each ayah and makes lines overlap, most visibly at the big sizes.
+                        lineHeight: size * 2.05,
+                        paddingTop: size * 0.1,
+                        paddingBottom: size * 0.3,
                         textAlign: 'right',
                         writingDirection: 'rtl',
                       }}

@@ -66,6 +66,13 @@ const ARIA_LEVEL: Partial<Record<TextVariant, string>> = {
 const TextClassContext = React.createContext<string | undefined>(undefined);
 
 /**
+ * True inside another <Text>. A nested Text must inherit the parent's size, line height, colour and font, so it does not
+ * get the base classes (text-base = 16px, text-foreground) that would override them. Without this the words of an ayah
+ * drawn as nested Texts ignored the text size chosen in the settings.
+ */
+const NestedTextContext = React.createContext(false);
+
+/**
  * React Native needs a specific font *file* per weight (font-medium alone does nothing for custom fonts),
  * so map the weight utilities onto the loaded families: Inter for English, Noto Sans Arabic for Arabic.
  * Elements that already choose a family (font-quran, font-display, font-naskh) are left alone.
@@ -77,7 +84,7 @@ const FAMILY_CLASSES = new Set([
 ]);
 const WEIGHT_CLASSES = new Set(['font-extrabold', 'font-bold', 'font-semibold', 'font-medium', 'font-normal']);
 
-function withFontFamily(classes: string, isRTL: boolean, wideQuran = false) {
+function withFontFamily(classes: string, isRTL: boolean, wideQuran = false, nested = false) {
   const tokens = classes.split(/\s+/).filter(Boolean).map(token => (wideQuran && token === 'font-quran' ? 'font-quran-wide' : token));
   const weights = tokens.filter(token => WEIGHT_CLASSES.has(token));
   const rest = tokens.filter(token => !WEIGHT_CLASSES.has(token));
@@ -86,6 +93,8 @@ function withFontFamily(classes: string, isRTL: boolean, wideQuran = false) {
   if (rest.some(token => FAMILY_CLASSES.has(token))) return rest.join(' ');
   const semibold = weights.some(w => w === 'font-extrabold' || w === 'font-bold' || w === 'font-semibold');
   const base = isRTL ? 'font-arabic' : 'font-sans';
+  // A nested Text without its own weight keeps the font of the Text around it.
+  if (nested && weights.length === 0) return rest.join(' ');
   return [...rest, semibold ? `${base}-semibold` : weights.includes('font-medium') ? `${base}-medium` : base].join(' ');
 }
 
@@ -100,15 +109,20 @@ function Text({
     asChild?: boolean;
   }) {
   const textClass = React.useContext(TextClassContext);
+  const nested = React.useContext(NestedTextContext);
   const { isRTL, mushaf } = useSettings();
   const Component = asChild ? Slot : RNText;
+  // Nested plain text keeps the parent's look; only the web "select-text" helper is kept.
+  const base = nested && variant === 'default' ? Platform.select({ web: 'select-text', default: '' }) : textVariants({ variant });
   return (
-    <Component
-      className={withFontFamily(cn(textVariants({ variant }), textClass, className), isRTL, mushaf.wide)}
-      role={variant ? ROLE[variant] : undefined}
-      aria-level={variant ? ARIA_LEVEL[variant] : undefined}
-      {...props}
-    />
+    <NestedTextContext.Provider value>
+      <Component
+        className={withFontFamily(cn(base, nested ? undefined : textClass, className), isRTL, mushaf.wide, nested)}
+        role={variant ? ROLE[variant] : undefined}
+        aria-level={variant ? ARIA_LEVEL[variant] : undefined}
+        {...props}
+      />
+    </NestedTextContext.Provider>
   );
 }
 

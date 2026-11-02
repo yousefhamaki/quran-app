@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Location from 'expo-location';
+import { Linking, Platform } from 'react-native';
+import * as ScreenOrientation from 'expo-screen-orientation';
 import { ArrowRight, BedDouble, Check, ChevronDown, CloudSun, Compass, Crosshair, MapPin, Moon, MoonStar, Sun, SunMedium, Sunrise, Sunset } from 'lucide-react-native';
 import { HIJRI_MONTHS_AR, HIJRI_MONTHS_EN, RAMADAN } from '@/lib/hijri';
 import { AppHeader } from '@/components/app-header';
@@ -27,6 +29,24 @@ function Panel({ children, className }: { children: React.ReactNode; className?:
 }
 
 /** The device's compass heading (degrees from north), or null when there is no compass. */
+/**
+ * iOS reports the compass heading for a portrait screen, whichever way the screen is turned. On a tablet (which turns
+ * freely) the heading has to be rotated with the screen, or the compass is a quarter turn off in landscape.
+ * "Interface" left/right are named by the home button: left = the top of the device points to the right.
+ */
+function useScreenRotation(active: boolean): number {
+  const [rotation, setRotation] = useState(0);
+  useEffect(() => {
+    if (!active || Platform.OS !== 'ios') return;
+    const apply = (o: ScreenOrientation.Orientation) =>
+      setRotation(o === ScreenOrientation.Orientation.LANDSCAPE_LEFT ? -90 : o === ScreenOrientation.Orientation.LANDSCAPE_RIGHT ? 90 : o === ScreenOrientation.Orientation.PORTRAIT_DOWN ? 180 : 0);
+    void ScreenOrientation.getOrientationAsync().then(apply).catch(() => {});
+    const sub = ScreenOrientation.addOrientationChangeListener(e => apply(e.orientationInfo.orientation));
+    return () => ScreenOrientation.removeOrientationChangeListener(sub);
+  }, [active]);
+  return rotation;
+}
+
 function useHeading(active: boolean): number | null {
   const [heading, setHeading] = useState<number | null>(null);
   useEffect(() => {
@@ -73,7 +93,12 @@ export default function PrayerScreen() {
   const [lat, setLat] = useState(() => (loc ? String(loc.lat) : ''));
   const [lng, setLng] = useState(() => (loc ? String(loc.lng) : ''));
   const [picking, setPicking] = useState(false);
-  const heading = useHeading(!!loc && tab === 'qibla');
+  const [manual, setManual] = useState(false);
+  // The position is detected by itself: asking for it is the only thing this screen does when there is none yet.
+  useEffect(() => { if (!loc) void prayer.refreshLocation(true); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const rawHeading = useHeading(!!loc && tab === 'qibla');
+  const screenRotation = useScreenRotation(!!loc && tab === 'qibla');
+  const heading = rawHeading === null ? null : (rawHeading + screenRotation + 360) % 360;
 
   // After "Use my location" the coordinate fields follow the new position.
   useEffect(() => {
@@ -113,14 +138,25 @@ export default function PrayerScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loc, times, method, madhab, prayer.iqama, t]);
 
-  const locationCta = (
+  const locationCta = prayer.locationStatus === 'denied' ? (
     <View className="gap-3 rounded-3xl bg-secondary p-5">
-      <Text className="text-sm text-secondary-foreground">{t('prayerNoLocation')}</Text>
-      <Button size="lg" className="h-12 rounded-xl" disabled={busy} onPress={() => void useMyLocation()}>
-        <Icon as={Crosshair} className="size-5 text-primary-foreground" />
-        <Text className="text-base">{busy ? t('prayerLocating') : t('prayerUseLocation')}</Text>
+      <Text accessibilityRole="header" className="text-lg font-semibold">{t('locationDeniedTitle')}</Text>
+      <Text className="text-sm leading-6 text-secondary-foreground">{t('locationDeniedHint')}</Text>
+      <Button size="lg" className="h-12 rounded-xl" onPress={() => void Linking.openSettings()}>
+        <Icon as={MapPin} className="size-5 text-primary-foreground" />
+        <Text className="text-base">{t('locationOpenSettings')}</Text>
       </Button>
-      {error ? <Text accessibilityRole="alert" className="text-sm text-destructive">{error}</Text> : null}
+      <Button variant="ghost" className="h-11 rounded-xl" onPress={() => void prayer.refreshLocation(true)}>
+        <Text>{t('locationTryAgain')}</Text>
+      </Button>
+    </View>
+  ) : (
+    <View className="items-center gap-3 rounded-3xl bg-secondary p-6">
+      <Icon as={Crosshair} className="size-8 text-primary" />
+      <Text accessibilityLiveRegion="polite" className="text-center text-base text-secondary-foreground">{t('locationDetecting')}</Text>
+      <Button variant="ghost" className="h-11 rounded-xl" onPress={() => void prayer.refreshLocation(true)}>
+        <Text>{t('locationTryAgain')}</Text>
+      </Button>
     </View>
   );
 
@@ -194,59 +230,49 @@ export default function PrayerScreen() {
         {tab === 'settings' ? (
           <>
             <Panel className="gap-4 rounded-3xl p-5">
-              <View className="flex-row items-center gap-2">
-                <Icon as={MapPin} className="size-4 text-primary" />
-                <Text accessibilityRole="header" className="flex-1 font-medium">
-                  {t('prayerLocation')}
-                  {loc?.name ? <Text className="font-normal text-muted-foreground"> · {loc.name}</Text> : null}
-                </Text>
+              <View className="flex-row items-start gap-3">
+                <View className="size-11 items-center justify-center rounded-xl bg-secondary">
+                  <Icon as={MapPin} className="size-5 text-primary" />
+                </View>
+                <View className="flex-1 gap-0.5">
+                  <Text accessibilityRole="header" className="font-medium">{t('locationAutoTitle')}</Text>
+                  <Text className="text-base">{loc?.name ?? t('locationDetecting')}</Text>
+                  {loc ? <Text className="text-xs text-muted-foreground" style={{ writingDirection: 'ltr', textAlign: isRTL ? 'right' : 'left' }}>{loc.lat.toFixed(3)}, {loc.lng.toFixed(3)}</Text> : null}
+                </View>
               </View>
-              <Button size="lg" className="h-12 rounded-xl" disabled={busy} onPress={() => void useMyLocation()}>
-                <Icon as={Crosshair} className="size-5 text-primary-foreground" />
-                <Text className="text-base">{busy ? t('prayerLocating') : t('prayerUseLocation')}</Text>
-              </Button>
+              <Text className="text-xs leading-5 text-muted-foreground">{t('locationAutoHint')}</Text>
+              {prayer.locationStatus === 'denied' ? (
+                <Button className="h-11 rounded-xl" onPress={() => void Linking.openSettings()}>
+                  <Text>{t('locationOpenSettings')}</Text>
+                </Button>
+              ) : (
+                <Button variant="outline" className="h-11 rounded-xl" disabled={busy} onPress={() => void useMyLocation()}>
+                  <Icon as={Crosshair} className="size-4" />
+                  <Text>{busy ? t('prayerLocating') : t('locationRefresh')}</Text>
+                </Button>
+              )}
               {error ? <Text accessibilityRole="alert" className="text-sm text-destructive">{error}</Text> : null}
-              <View className="flex-row gap-3">
-                <View className="flex-1 gap-1.5">
-                  <Text className="text-sm font-medium">{t('prayerLat')}</Text>
-                  <Input value={lat} onChangeText={setLat} keyboardType="numbers-and-punctuation" placeholder="30.0444" className="h-11 rounded-xl" style={{ writingDirection: 'ltr', textAlign: 'left' }} />
-                </View>
-                <View className="flex-1 gap-1.5">
-                  <Text className="text-sm font-medium">{t('prayerLng')}</Text>
-                  <Input value={lng} onChangeText={setLng} keyboardType="numbers-and-punctuation" placeholder="31.2357" className="h-11 rounded-xl" style={{ writingDirection: 'ltr', textAlign: 'left' }} />
-                </View>
-              </View>
-              <Button variant="outline" className="h-11 rounded-xl" disabled={!coordsOk} onPress={() => prayer.setLocation({ lat: latN, lng: lngN })}>
-                <Text>{t('prayerSetCoords')}</Text>
-              </Button>
-            </Panel>
-
-            <Panel className="gap-4 rounded-3xl p-5">
-              <View className="gap-2">
-                <Text className="text-sm font-medium">{t('prayerMethod')}</Text>
-                <Pressable onPress={() => setPicking(true)} accessibilityRole="button" accessibilityLabel={t('prayerMethod')} className="h-12 flex-row items-center justify-between rounded-xl border border-input bg-background px-4 active:bg-accent">
-                  <Text numberOfLines={1} className="flex-1">{methodName(method)}</Text>
-                  <Icon as={ChevronDown} className="size-4 text-muted-foreground" />
-                </Pressable>
-              </View>
-              <View className="gap-2">
-                <Text className="text-sm font-medium">{t('prayerMadhab')}</Text>
-                <Chips<MadhabId> label={t('prayerMadhab')} value={madhab} onChange={prayer.setMadhab} options={[{ value: 'shafi', label: t('madhabShafi') }, { value: 'hanafi', label: t('madhabHanafi') }]} />
-              </View>
-              <Text className="text-xs leading-5 text-muted-foreground">{t('prayerAccuracy')}</Text>
-            </Panel>
-
-            <Panel className="gap-4 rounded-3xl p-5">
-              <Text accessibilityRole="header" className="font-medium">{t('iqamaSettings')}</Text>
-              {(['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'] as const).map(k => (
-                <View key={k} className="flex-row items-center gap-3">
-                  <Text className="w-20 text-sm font-medium">{t(PRAYER_KEYS[k])}</Text>
-                  <View className="flex-1">
-                    <Stepper label={`${t('iqamaLabel')} ${t(PRAYER_KEYS[k])}`} value={prayer.iqama[k]} min={0} max={90} onChange={v => prayer.setIqama(k, v)} />
+              <Pressable onPress={() => setManual(v => !v)} accessibilityRole="button" accessibilityState={{ expanded: manual }} className="min-h-11 flex-row items-center justify-between">
+                <Text className="text-sm text-muted-foreground">{t('locationManual')}</Text>
+                <Icon as={ChevronDown} className={cn('size-4 text-muted-foreground', manual && 'rotate-180')} />
+              </Pressable>
+              {manual ? (
+                <View className="gap-3">
+                  <View className="flex-row gap-3">
+                    <View className="flex-1 gap-1.5">
+                      <Text className="text-sm font-medium">{t('prayerLat')}</Text>
+                      <Input value={lat} onChangeText={setLat} keyboardType="numbers-and-punctuation" placeholder="30.0444" className="h-11 rounded-xl" style={{ writingDirection: 'ltr', textAlign: 'left' }} />
+                    </View>
+                    <View className="flex-1 gap-1.5">
+                      <Text className="text-sm font-medium">{t('prayerLng')}</Text>
+                      <Input value={lng} onChangeText={setLng} keyboardType="numbers-and-punctuation" placeholder="31.2357" className="h-11 rounded-xl" style={{ writingDirection: 'ltr', textAlign: 'left' }} />
+                    </View>
                   </View>
+                  <Button variant="outline" className="h-11 rounded-xl" disabled={!coordsOk} onPress={() => prayer.setLocation({ lat: latN, lng: lngN })}>
+                    <Text>{t('prayerSetCoords')}</Text>
+                  </Button>
                 </View>
-              ))}
-              <Text className="text-xs leading-5 text-muted-foreground">{t('iqamaHint')}</Text>
+              ) : null}
             </Panel>
 
             <Panel className="gap-4 rounded-3xl p-5">
@@ -287,6 +313,47 @@ export default function PrayerScreen() {
               {!loc ? <Text className="text-xs text-muted-foreground">{t('prayerNoLocation')}</Text> : null}
             </Panel>
 
+            <Panel className="gap-4 rounded-3xl p-5">
+              <View className="gap-2">
+                <Text className="text-sm font-medium">{t('prayerMethod')}</Text>
+                <Pressable onPress={() => setPicking(true)} accessibilityRole="button" accessibilityLabel={t('prayerMethod')} className="h-12 flex-row items-center justify-between rounded-xl border border-input bg-background px-4 active:bg-accent">
+                  <Text numberOfLines={1} className="flex-1">{prayer.methodAuto ? `${t('methodAuto')} · ${methodName(method)}` : methodName(method)}</Text>
+                  <Icon as={ChevronDown} className="size-4 text-muted-foreground" />
+                </Pressable>
+              </View>
+              <View className="gap-2">
+                <Text className="text-sm font-medium">{t('prayerMadhab')}</Text>
+                <Chips<MadhabId> label={t('prayerMadhab')} value={madhab} onChange={prayer.setMadhab} options={[{ value: 'shafi', label: t('madhabShafi') }, { value: 'hanafi', label: t('madhabHanafi') }]} />
+              </View>
+              <Text className="text-xs leading-5 text-muted-foreground">{t('prayerAccuracy')}</Text>
+            </Panel>
+
+            <Panel className="gap-4 rounded-3xl p-5">
+              <Text accessibilityRole="header" className="font-medium">{t('tuneHeading')}</Text>
+              {(['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'] as const).map(k => (
+                <View key={k} className="flex-row items-center gap-3">
+                  <Text className="w-20 text-sm font-medium">{t(PRAYER_KEYS[k])}</Text>
+                  <View className="flex-1">
+                    <Stepper label={`${t('tuneHeading')} ${t(PRAYER_KEYS[k])}`} value={prayer.tune[k]} min={-15} max={15} onChange={v => prayer.setTune(k, v)} />
+                  </View>
+                </View>
+              ))}
+              <Text className="text-xs leading-5 text-muted-foreground">{t('tuneHint')}</Text>
+            </Panel>
+
+            <Panel className="gap-4 rounded-3xl p-5">
+              <Text accessibilityRole="header" className="font-medium">{t('iqamaSettings')}</Text>
+              {(['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'] as const).map(k => (
+                <View key={k} className="flex-row items-center gap-3">
+                  <Text className="w-20 text-sm font-medium">{t(PRAYER_KEYS[k])}</Text>
+                  <View className="flex-1">
+                    <Stepper label={`${t('iqamaLabel')} ${t(PRAYER_KEYS[k])}`} value={prayer.iqama[k]} min={0} max={90} onChange={v => prayer.setIqama(k, v)} />
+                  </View>
+                </View>
+              ))}
+              <Text className="text-xs leading-5 text-muted-foreground">{t('iqamaHint')}</Text>
+            </Panel>
+
             <Pressable onPress={() => router.push('/calendar')} accessibilityRole="button" className="flex-row items-center gap-4 rounded-2xl border border-border bg-card p-4 active:border-primary">
               <View className="size-11 items-center justify-center rounded-xl bg-secondary">
                 <Icon as={MoonStar} className="size-6 text-primary" />
@@ -305,12 +372,24 @@ export default function PrayerScreen() {
 
       <Sheet open={picking} tall onClose={() => setPicking(false)} title={t('prayerMethod')}>
         <View className="gap-1 pb-4">
+          <Pressable
+            onPress={() => { prayer.chooseMethod('auto'); setPicking(false); }}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: prayer.methodAuto }}
+            className={cn('min-h-14 flex-row items-center gap-3 rounded-xl px-3 active:bg-accent', prayer.methodAuto && 'bg-accent')}
+          >
+            <View className="flex-1">
+              <Text className="font-medium">{t('methodAuto')}</Text>
+              <Text className="text-xs text-muted-foreground">{t('methodAutoHint')}</Text>
+            </View>
+            {prayer.methodAuto ? <Icon as={Check} className="size-4 text-primary" /> : null}
+          </Pressable>
           {METHODS.map(m => {
-            const selected = m.id === method;
+            const selected = !prayer.methodAuto && m.id === method;
             return (
               <Pressable
                 key={m.id}
-                onPress={() => { prayer.setMethod(m.id); setPicking(false); }}
+                onPress={() => { prayer.chooseMethod(m.id); setPicking(false); }}
                 accessibilityRole="radio"
                 accessibilityState={{ selected }}
                 className={cn('min-h-12 flex-row items-center gap-3 rounded-xl px-3 active:bg-accent', selected && 'bg-accent')}

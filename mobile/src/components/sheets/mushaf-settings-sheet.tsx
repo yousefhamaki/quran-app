@@ -12,9 +12,9 @@ import { Separator } from '@/components/ui/separator';
 import { Text } from '@/components/ui/text';
 import { cn } from '@/lib/utils';
 import type { TKey } from '@/lib/i18n';
-import { FONT_DEFAULT, NUMBER_COLORS, NUMBER_COLOR_ORDER, stepFont, type MushafView, type NumberColor } from '@/lib/mushaf-prefs';
+import { NUMBER_COLORS, NUMBER_COLOR_ORDER, TEXT_SIZES, fontSizeFor, textSizeOf, type MushafView, type NumberColor, type TextSize } from '@/lib/mushaf-prefs';
 import { TAFSIRS, TRANSLATIONS } from '@/lib/quran';
-import { useSettings } from '@/context/settings';
+import { DEFAULT_SETTINGS, useSettings } from '@/context/settings';
 import { useUI } from '@/context/ui';
 
 const VIEWS: { id: MushafView; label: TKey; hint: TKey }[] = [
@@ -36,7 +36,9 @@ export function MushafSettingsSheet({ onOpenGeneral }: { onOpenGeneral: () => vo
   const { settingsOpen, setSettingsOpen } = useUI();
   const { settings, update, mushaf, setMushaf, memorize, setMemorize, tajweed, setTajweed, wordHighlight, setWordHighlight, t, isRTL } = useSettings();
   const { theme } = useUniwind();
-  const size = settings.fontSize;
+  const normalPx = DEFAULT_SETTINGS.fontSize;
+  const size = textSizeOf(settings.fontSize, normalPx);
+  const SIZE_LABEL: Record<TextSize, TKey> = { small: 'textSizeSmall', normal: 'textSizeNormal', big: 'textSizeBig', huge: 'textSizeHuge' };
   const mode = theme === 'dark' ? 'dark' : 'light';
 
   return (
@@ -67,17 +69,20 @@ export function MushafSettingsSheet({ onOpenGeneral }: { onOpenGeneral: () => vo
 
       {/* Text size */}
       <Section title={t('mushafTextSize')}>
-        <View className="flex-row items-center justify-between gap-2 rounded-2xl bg-muted p-1.5" style={{ direction: 'ltr' }}>
-          <Button variant="ghost" size="icon" className="size-11 rounded-xl" onPress={() => update({ fontSize: stepFont(size, -1) })} accessibilityLabel={t('mushafSizeDown')}>
-            <Icon as={Minus} className="size-5" />
-          </Button>
-          <Pressable onPress={() => update({ fontSize: FONT_DEFAULT })} accessibilityRole="button" accessibilityLabel={t('mushafSizeDefault')} className="min-w-24 items-center rounded-xl px-3 py-2">
-            <Text className="font-medium">{size === FONT_DEFAULT ? t('mushafSizeDefault') : `${size}`}</Text>
-          </Pressable>
-          <Button variant="ghost" size="icon" className="size-11 rounded-xl" onPress={() => update({ fontSize: stepFont(size, 1) })} accessibilityLabel={t('mushafSizeUp')}>
-            <Icon as={Plus} className="size-5" />
-          </Button>
+        <View accessibilityRole="radiogroup" accessibilityLabel={t('mushafTextSize')} className="flex-row gap-2 rounded-2xl bg-muted p-1.5">
+          {TEXT_SIZES.map(id => (
+            <Pressable
+              key={id}
+              onPress={() => update({ fontSize: fontSizeFor(id, normalPx) })}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: size === id }}
+              className={cn('min-h-12 flex-1 items-center justify-center rounded-xl px-1 py-2', size === id ? 'border-2 border-primary bg-background' : 'active:bg-accent/60')}
+            >
+              <Text className="text-sm font-medium">{t(SIZE_LABEL[id])}</Text>
+            </Pressable>
+          ))}
         </View>
+        <Text className="mt-3 rounded-2xl border border-border bg-card px-4 py-3 text-center font-quran" style={{ fontSize: settings.fontSize, lineHeight: settings.fontSize * 2, writingDirection: 'rtl' }}>بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</Text>
       </Section>
 
       {/* Alignment */}

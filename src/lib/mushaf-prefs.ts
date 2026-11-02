@@ -63,3 +63,29 @@ export function normalizeMushaf(raw: Partial<MushafPrefs> | null | undefined): M
 
 /** One step up (+1) or down (-1) in text size, kept within the range. */
 export const stepFont = (size: number, direction: 1 | -1): number => Math.min(FONT_MAX, Math.max(FONT_MIN, size + direction * FONT_STEP));
+
+// ---------- the four text sizes ----------
+
+/** The Quran text comes in four sizes only. */
+export type TextSize = 'small' | 'normal' | 'big' | 'huge';
+export const TEXT_SIZES: TextSize[] = ['small', 'normal', 'big', 'huge'];
+
+/** Each size relative to "normal". */
+const TEXT_SIZE_SCALE: Record<TextSize, number> = { small: 0.8, normal: 1, big: 1.25, huge: 1.55 };
+
+/** Pixel size of a text size, given the size of "normal" on this platform (even numbers only). */
+export const fontSizeFor = (size: TextSize, normalPx: number): number => Math.round((normalPx * TEXT_SIZE_SCALE[size]) / 2) * 2;
+
+/** The text size closest to a stored pixel size (older versions saved any number between 20 and 56). */
+export function textSizeOf(px: number, normalPx: number): TextSize {
+  let best: TextSize = 'normal';
+  let distance = Infinity;
+  for (const size of TEXT_SIZES) {
+    const d = Math.abs(fontSizeFor(size, normalPx) - px);
+    if (d < distance) { best = size; distance = d; }
+  }
+  return best;
+}
+
+/** A stored pixel size moved onto one of the four sizes. */
+export const snapFontSize = (px: number, normalPx: number): number => fontSizeFor(textSizeOf(Number(px) || normalPx, normalPx), normalPx);

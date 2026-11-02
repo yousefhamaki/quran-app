@@ -10,9 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { TajweedLegend } from '@/components/tajweed-legend';
 import { cn } from '@/lib/utils';
 import type { TKey } from '@/lib/i18n';
-import { FONT_DEFAULT, NUMBER_COLORS, NUMBER_COLOR_ORDER, stepFont, type MushafView, type NumberColor } from '@/lib/mushaf-prefs';
+import { NUMBER_COLORS, NUMBER_COLOR_ORDER, TEXT_SIZES, fontSizeFor, textSizeOf, type MushafView, type NumberColor, type TextSize } from '@/lib/mushaf-prefs';
 import { TAFSIRS, TRANSLATIONS } from '@/lib/quran';
-import { useSettings } from '@/context/settings';
+import { DEFAULT_SETTINGS, useSettings } from '@/context/settings';
 import { useTheme } from '@/context/theme';
 
 const VIEWS: { id: MushafView; label: TKey; hint: TKey }[] = [
@@ -59,7 +59,9 @@ export function MushafSettingsSheet({ open, onOpenChange, onOpenGeneral }: Props
   const { settings, update, mushaf, setMushaf, memorize, setMemorize, tajweed, setTajweed, wordHighlight, setWordHighlight, t } = useSettings();
   const { resolvedTheme } = useTheme();
   const ar = settings.lang === 'ar';
-  const size = settings.fontSize;
+  const normalPx = DEFAULT_SETTINGS.fontSize;
+  const size = textSizeOf(settings.fontSize, normalPx);
+  const SIZE_LABEL: Record<TextSize, TKey> = { small: 'textSizeSmall', normal: 'textSizeNormal', big: 'textSizeBig', huge: 'textSizeHuge' };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -97,13 +99,21 @@ export function MushafSettingsSheet({ open, onOpenChange, onOpenGeneral }: Props
 
             {/* Text size */}
             <Section title={t('mushafTextSize')}>
-              <div className="flex items-center justify-between gap-2 rounded-2xl bg-muted p-1.5" dir="ltr">
-                <Button variant="ghost" size="icon" className="size-11 rounded-xl" onClick={() => update({ fontSize: stepFont(size, -1) })} aria-label={t('mushafSizeDown')}><Minus className="size-5" aria-hidden /></Button>
-                <button type="button" onClick={() => update({ fontSize: FONT_DEFAULT })} className="min-w-24 rounded-xl px-3 py-2 text-center font-medium tabular-nums" aria-label={t('mushafSizeDefault')}>
-                  {size === FONT_DEFAULT ? t('mushafSizeDefault') : `${size}px`}
-                </button>
-                <Button variant="ghost" size="icon" className="size-11 rounded-xl" onClick={() => update({ fontSize: stepFont(size, 1) })} aria-label={t('mushafSizeUp')}><Plus className="size-5" aria-hidden /></Button>
+              <div role="radiogroup" aria-label={t('mushafTextSize')} className="grid grid-cols-4 gap-2 rounded-2xl bg-muted p-1.5">
+                {TEXT_SIZES.map(id => (
+                  <button
+                    key={id}
+                    type="button"
+                    role="radio"
+                    aria-checked={size === id}
+                    onClick={() => update({ fontSize: fontSizeFor(id, normalPx) })}
+                    className={cn('min-h-12 rounded-xl px-1 py-2 text-center text-sm font-medium transition-colors focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none', size === id ? 'bg-background shadow-sm ring-2 ring-primary' : 'hover:bg-accent/60')}
+                  >
+                    {t(SIZE_LABEL[id])}
+                  </button>
+                ))}
               </div>
+              <p dir="rtl" className="mt-3 rounded-2xl border bg-card px-4 py-3 text-center font-quran leading-[2]" style={{ fontSize: `${settings.fontSize}px` }}>بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</p>
             </Section>
 
             {/* Alignment */}

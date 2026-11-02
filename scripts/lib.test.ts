@@ -3,8 +3,10 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { parseTajweed, plainWords, tajweedColor, wordText } from '../src/lib/tajweed.ts';
 import { activeWordAt, estimateSegments, normalizeSegments, wordWeight } from '../src/lib/wordtiming.ts';
+import { FEATURED, HISN, allChapters, chapter, evening, morning, searchChapters } from '../src/lib/hisn.ts';
+import { fontSizeFor, snapFontSize, textSizeOf } from '../src/lib/mushaf-prefs.ts';
 import { HIZB_STARTS, annotate, annotationList, hizbOf, juzOf, pickPrompt, recordAnswer, scoreOf, weakest, weekCalendar } from '../src/lib/study.ts';
-import { ALERT_KEYS, DEFAULT_ALERTS, extraTimes, normalizeAlerts } from '../src/lib/prayer.ts';
+import { ALERT_KEYS, DEFAULT_ALERTS, NO_TUNE, countryMethod, distanceKm, extraTimes, normalizeAlerts, normalizeTune, setPrayerTune } from '../src/lib/prayer.ts';
 import { INTERVALS, addDays, completeLearn, createPlan, daysBetween, dueCards, learnTask, planStats, rateCard, upcoming } from '../src/lib/hifz.ts';
 
 // ---------------------------------------------------------------- tajweed
@@ -250,7 +252,7 @@ test('juz: surahs of a juz', () => {
 });
 
 // ---------- hijri ----------
-import { toHijri, fromHijri, monthLength, monthDays, shiftMonth, hijriOf } from '../src/lib/hijri.ts';
+import { toHijri, fromHijri, monthLength, monthDays, shiftMonth, hijriOf, setHijriTable } from '../src/lib/hijri.ts';
 
 test('hijri: known dates (tabular calendar is within a day of Umm al-Qura)', () => {
   // 1 Muharram 1447 was 26 or 27 June 2025; 1 Ramadan 1445 was 10 or 11 March 2024; 1 Ramadan 1447 ≈ 18 or 19 Feb 2026.
@@ -550,4 +552,101 @@ test('extra alert times: Ishraq is 20 minutes after sunrise', () => {
   assert.equal(t.sunrise.getTime(), sunrise.getTime());
   assert.equal(t.ishraq.getTime() - sunrise.getTime(), 20 * 60_000);
   assert.equal(t.qiyam.getTime(), lastThird.getTime());
+});
+
+// ---------------------------------------------------------------- text sizes
+test('four text sizes per platform, stored sizes snap to the nearest', () => {
+  assert.deepEqual((['small', 'normal', 'big', 'huge'] as const).map(s => fontSizeFor(s, 32)), [26, 32, 40, 50]);
+  assert.deepEqual((['small', 'normal', 'big', 'huge'] as const).map(s => fontSizeFor(s, 30)), [24, 30, 38, 46]);
+  assert.equal(textSizeOf(32, 32), 'normal');
+  assert.equal(textSizeOf(20, 32), 'small');
+  assert.equal(textSizeOf(56, 32), 'huge');
+  assert.equal(textSizeOf(37, 32), 'big', '37 is closer to 40 than to 32');
+  assert.equal(textSizeOf(35, 32), 'normal');
+  assert.equal(snapFontSize(34, 32), 32);
+  assert.equal(snapFontSize(NaN, 30), 30);
+});
+
+// ---------------------------------------------------------------- Hisn al-Muslim adhkar
+test('Hisn al-Muslim: the complete book, 132 chapters', () => {
+  assert.equal(HISN.length, 132);
+  assert.ok(HISN.reduce((n, c) => n + c.items.length, 0) >= 260);
+  for (const c of HISN) {
+    assert.ok(c.ar.length > 0, `chapter ${c.id} has a title`);
+    assert.ok(c.items.length > 0, `chapter ${c.id} has items`);
+    for (const i of c.items) {
+      assert.ok(i.ar.length > 3 && i.count >= 1, `chapter ${c.id} item`);
+      assert.ok(!/\(\(|\)\)/.test(i.ar), 'the book markers (( )) are removed');
+    }
+  }
+  assert.equal(HISN[0].id, 1);
+  assert.equal(allChapters().length, 132);
+  for (const f of FEATURED) assert.ok(chapter(f.id).items.length > 0, `featured ${f.id}`);
+});
+
+test('morning and evening each leave out the items of the other', () => {
+  const m = morning().items, e = evening().items;
+  assert.equal(HISN[0].items.length, 24);
+  assert.equal(m.length, 23, 'the evening-only item is left out');
+  assert.equal(e.length, 21, 'the three morning-only items are left out');
+  assert.ok(m.every(i => !/\(([^()]*)إذا أمسى([^()]*)\)\s*\.?\s*$/.test(i.ar ?? '')), 'no evening-only note in the morning list');
+  assert.ok(e.every(i => !/\(([^()]*)إذا أصبح([^()]*)\)\s*\.?\s*$/.test(i.ar ?? '')), 'no morning-only note in the evening list');
+  // The ayat al-kursi item opens both lists.
+  assert.ok(m[0].ar!.includes('الْحَيُّ الْقَيُّومُ') && e[0].ar!.includes('الْحَيُّ الْقَيُّومُ'));
+});
+
+test('searching the adhkar ignores diacritics and letter forms', () => {
+  assert.ok(searchChapters('الصباح').some(c => c.id === 'hisn-1'));
+  assert.ok(searchChapters('دعاء الكرب').length >= 1);
+  assert.ok(searchChapters('اللهم عافني').length >= 1, 'finds text inside items');
+  assert.equal(searchChapters('').length, 132);
+});
+
+// ---------------------------------------------------------------- Hijri dates from the network
+test('real Hijri dates win over the calculated ones, and adjust still shifts them', () => {
+  setHijriTable({});
+  const calculated = toHijri(2026, 11, 2);
+  assert.equal(calculated.day, 21, 'the tabular calendar is a day behind the real one here');
+  // Real dates (Umm al-Qura): 1 Jumada al-Awwal 1448 is 12 October 2026, so 2 November is the 22nd.
+  const table: Record<string, [number, number, number]> = {};
+  for (let d = 12; d <= 31; d++) table[`2026-10-${d}`] = [1448, 5, d - 11];
+  for (let d = 1; d <= 3; d++) table[`2026-11-${String(d).padStart(2, '0')}`] = [1448, 5, d + 20];
+  setHijriTable(table);
+  assert.deepEqual(toHijri(2026, 11, 2), { year: 1448, month: 5, day: 22 });
+  assert.equal(toHijri(2026, 11, 2, 1).day, 23, 'the user adjustment moves it a day');
+  assert.equal(monthDays(1448, 5)[0].iso, '2026-10-12');
+  assert.equal(monthDays(1448, 5).length, 30, 'month length falls back to the calculated one without day 29/30');
+  setHijriTable({});
+  assert.equal(toHijri(2026, 11, 2).day, 21, 'an empty table goes back to the calculation');
+});
+
+// ---------------------------------------------------------------- method by country and adjustments
+test('the calculation method follows the country', () => {
+  assert.equal(countryMethod('EG'), 'Egyptian');
+  assert.equal(countryMethod('eg'), 'Egyptian');
+  assert.equal(countryMethod('SA'), 'UmmAlQura');
+  assert.equal(countryMethod('PK'), 'Karachi');
+  assert.equal(countryMethod('US'), 'NorthAmerica');
+  assert.equal(countryMethod('FR'), 'MuslimWorldLeague');
+  assert.equal(countryMethod(undefined), 'MuslimWorldLeague');
+});
+
+test('Egyptian method puts Fajr earlier than the Muslim World League in Egypt, and adjustments shift a prayer', () => {
+  const tanta = { lat: 30.7865, lng: 31.0004 };
+  const day = new Date(2026, 10, 2, 12);
+  setPrayerTune(NO_TUNE);
+  const egypt = timesFor(tanta, day, 'Egyptian', 'shafi');
+  const mwl = timesFor(tanta, day, 'MuslimWorldLeague', 'shafi');
+  const minutes = (a: Date, b: Date) => Math.round((b.getTime() - a.getTime()) / 60_000);
+  assert.equal(minutes(egypt.fajr, mwl.fajr), 7, 'MWL Fajr is 7 minutes after the Egyptian one');
+  const tuned = timesFor(tanta, day, 'Egyptian', 'shafi', { ...NO_TUNE, dhuhr: 2, fajr: -3 });
+  assert.equal(minutes(egypt.dhuhr, tuned.dhuhr), 2);
+  assert.equal(minutes(tuned.fajr, egypt.fajr), 3);
+  assert.equal(tuned.asr.getTime(), egypt.asr.getTime(), 'untouched prayers stay');
+  setPrayerTune({ ...NO_TUNE, isha: 5 });
+  assert.equal(minutes(egypt.isha, timesFor(tanta, day, 'Egyptian', 'shafi').isha), 5, 'the saved adjustments apply everywhere by default');
+  setPrayerTune(NO_TUNE);
+  assert.deepEqual(normalizeTune({ fajr: 99, isha: -99, dhuhr: 2.4, bogus: 5 } as never), { ...NO_TUNE, fajr: 15, isha: -15, dhuhr: 2 });
+  assert.deepEqual(normalizeTune(undefined), NO_TUNE);
+  assert.ok(Math.abs(distanceKm({ lat: 30.0444, lng: 31.2357 }, { lat: 21.4225, lng: 39.8262 }) - 1287) < 5, 'Cairo to the Kaaba is about 1,287 km');
 });

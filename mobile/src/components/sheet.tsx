@@ -9,6 +9,7 @@ import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { cn } from '@/lib/utils';
 import { useRegisterSheet } from '@/lib/sheet-store';
+import { MAX_SHEET_WIDTH } from '@/lib/layout';
 import { useSettings } from '@/context/settings';
 
 interface Props {
@@ -45,7 +46,7 @@ export function Sheet({ open, onClose, title, description, quranTitle, children,
 
           <Animated.View
             entering={SlideInDown.duration(260)}
-            style={{ paddingBottom: insets.bottom, maxHeight: '92%' }}
+            style={{ paddingBottom: insets.bottom, maxHeight: '92%', maxWidth: MAX_SHEET_WIDTH }}
             className={cn('w-full self-center rounded-t-3xl border border-b-0 border-border bg-background', tall && 'h-[92%]')}
           >
             <View className="items-center pt-2.5" accessibilityElementsHidden importantForAccessibility="no">

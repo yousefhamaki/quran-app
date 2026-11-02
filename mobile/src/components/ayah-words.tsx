@@ -75,6 +75,17 @@ interface Props {
   ayah: number;
 }
 
+/** Neighbouring pieces with the same tajweed rule become one piece. */
+function joinChunks(word: Word): Word {
+  const out: Word = [];
+  for (const chunk of word) {
+    const last = out[out.length - 1];
+    if (last && last.cls === chunk.cls) out[out.length - 1] = { ...last, text: last.text + chunk.text };
+    else out.push(chunk);
+  }
+  return out;
+}
+
 /**
  * An ayah drawn word by word: optional tajweed colours and a highlight that follows the reciter.
  * Renders nested <Text> so it can sit inside the ayah's own <Text>.
@@ -92,11 +103,15 @@ export function AyahWords({ words, active, surah, ayah }: Props) {
     <>
       {words.map((word, i) => (
         <Text key={i} className="font-quran" onPress={() => setWord({ surah, ayah, index: i })} accessibilityRole="button" style={i === index ? { backgroundColor: highlight } : undefined}>
-          {word.map((chunk, j) => (
-            <Text key={j} className="font-quran" style={tajweed && chunk.cls ? { color: tajweedColor(chunk.cls, dark) } : undefined}>
-              {chunk.text}
-            </Text>
-          ))}
+          {/* Separate pieces of text cannot join as Arabic letters, so a word is only split where the colour changes
+              (and not at all without tajweed colours): that keeps the letters connected and the word unbreakable. */}
+          {tajweed
+            ? joinChunks(word).map((chunk, j) => (
+                <Text key={j} className="font-quran" style={chunk.cls ? { color: tajweedColor(chunk.cls, dark) } : undefined}>
+                  {chunk.text}
+                </Text>
+              ))
+            : wordText(word)}
           {i < words.length - 1 ? ' ' : ''}
         </Text>
       ))}

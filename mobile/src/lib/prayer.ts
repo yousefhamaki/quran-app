@@ -82,10 +82,64 @@ function params(method: MethodId, madhab: MadhabId): CalculationParameters {
   return p;
 }
 
-/** All prayer times of the local day of `date` at `loc`. */
-export function timesFor(loc: Location, date: Date, method: MethodId, madhab: MadhabId): DayTimes {
+// ---------- calculation method by country, and per-prayer adjustments ----------
+
+/**
+ * The calculation method most used in a country (ISO 3166 alpha-2 code), so the times match the local ones:
+ * Egypt uses the Egyptian General Authority of Survey (Fajr 19.5°, Isha 17.5°), Saudi Arabia Umm al-Qura, and so on.
+ * Anywhere else the Muslim World League is the default.
+ */
+export function countryMethod(code: string | null | undefined): MethodId {
+  switch ((code ?? '').toUpperCase()) {
+    case 'EG': return 'Egyptian';
+    case 'SA': return 'UmmAlQura';
+    case 'KW': return 'Kuwait';
+    case 'QA': return 'Qatar';
+    case 'AE': return 'Dubai';
+    case 'TR': return 'Turkey';
+    case 'PK': case 'IN': case 'BD': case 'AF': return 'Karachi';
+    case 'US': case 'CA': return 'NorthAmerica';
+    case 'SG': case 'MY': case 'ID': case 'BN': return 'Singapore';
+    case 'IR': return 'Tehran';
+    default: return 'MuslimWorldLeague';
+  }
+}
+
+/** Minutes added to (or taken from) each prayer, to match a local timetable exactly. */
+export type Tune = Record<'fajr' | 'dhuhr' | 'asr' | 'maghrib' | 'isha', number>;
+export const NO_TUNE: Tune = { fajr: 0, dhuhr: 0, asr: 0, maghrib: 0, isha: 0 };
+export const TUNE_LIMIT = 15;
+
+/** Saved adjustments merged over zero (unknown keys dropped, values kept within +/- TUNE_LIMIT). */
+export function normalizeTune(saved: Partial<Record<string, number>> | null | undefined): Tune {
+  const out = { ...NO_TUNE };
+  for (const k of Object.keys(NO_TUNE) as (keyof Tune)[]) {
+    const v = Number(saved?.[k]);
+    if (Number.isFinite(v)) out[k] = Math.max(-TUNE_LIMIT, Math.min(TUNE_LIMIT, Math.round(v)));
+  }
+  return out;
+}
+
+// The adjustments in use. Set once by the prayer settings; every time shown or scheduled goes through timesFor.
+let tuneNow: Tune = NO_TUNE;
+export function setPrayerTune(tune: Tune) {
+  tuneNow = tune;
+}
+
+/** Great-circle distance in km between two places. */
+export function distanceKm(a: Location, b: Location): number {
+  const rad = Math.PI / 180;
+  const dLat = (b.lat - a.lat) * rad;
+  const dLng = (b.lng - a.lng) * rad;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLng / 2) ** 2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+}
+
+/** All prayer times of the local day of `date` at `loc` (with the user's minute adjustments applied). */
+export function timesFor(loc: Location, date: Date, method: MethodId, madhab: MadhabId, tune: Tune = tuneNow): DayTimes {
   const t = new PrayerTimes(new Coordinates(loc.lat, loc.lng), date, params(method, madhab));
-  return { fajr: t.fajr, sunrise: t.sunrise, dhuhr: t.dhuhr, asr: t.asr, maghrib: t.maghrib, isha: t.isha };
+  const shift = (d: Date, minutes: number) => (minutes ? new Date(d.getTime() + minutes * 60_000) : d);
+  return { fajr: shift(t.fajr, tune.fajr), sunrise: t.sunrise, dhuhr: shift(t.dhuhr, tune.dhuhr), asr: shift(t.asr, tune.asr), maghrib: shift(t.maghrib, tune.maghrib), isha: shift(t.isha, tune.isha) };
 }
 
 export interface Next {

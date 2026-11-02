@@ -3,7 +3,8 @@ import { AppState } from 'react-native';
 import * as Location from 'expo-location';
 import { loadJSON, saveJSON } from '@/lib/storage';
 import { hijriOf, type HijriDate } from '@/lib/hijri';
-import { DEFAULT_ALERTS, IQAMA_DEFAULTS, nextPrayer, normalizeAlerts, timesFor, type AlertKey, type DayTimes, type IqamaMinutes, type Location as Place, type MadhabId, type MethodId, type Next, type PrayerName } from '@/lib/prayer';
+import { loadSavedHijri, refreshHijri } from '@/lib/hijri-online';
+import { DEFAULT_ALERTS, IQAMA_DEFAULTS, NO_TUNE, TUNE_LIMIT, countryMethod, distanceKm, nextPrayer, normalizeAlerts, normalizeTune, setPrayerTune, timesFor, type AlertKey, type Tune, type DayTimes, type IqamaMinutes, type Location as Place, type MadhabId, type MethodId, type Next, type PrayerName } from '@/lib/prayer';
 import { syncAdhan, type ReminderResult } from '@/lib/reminders';
 import { useSettings } from '@/context/settings';
 import type { TKey } from '@/lib/i18n';
@@ -23,6 +24,14 @@ interface Stored {
   beforeMinutes: number;
   /** Which prayers (and extras) notify. */
   alerts: Record<AlertKey, boolean>;
+  /** The calculation method follows the country of the detected location (on by default). */
+  methodAuto: boolean;
+  /** ISO country code of the detected location. */
+  country: string | null;
+  /** Minutes added to or taken from each prayer, to match a local timetable. */
+  tune: Tune;
+  /** Version of the saved settings (to move older installs to new defaults once). */
+  v: number;
 }
 
 export type LocateResult = 'ok' | 'denied' | 'unavailable';
@@ -43,13 +52,22 @@ interface PrayerContextValue extends Stored {
   setBefore: (on: boolean) => void;
   setBeforeMinutes: (n: number) => void;
   setAlert: (key: AlertKey, on: boolean) => void;
+  /** Pick a calculation method (turns the automatic choice off) or go back to the automatic one. */
+  chooseMethod: (method: MethodId | 'auto') => void;
+  setTune: (prayer: keyof Tune, minutes: number) => void;
+  /** The method chosen by hand, whatever is in use (`method` is the one in use). */
+  selectedMethod: MethodId;
+  /** Where the position stands: allowed, refused, or not asked yet. */
+  locationStatus: 'granted' | 'denied' | 'unknown';
+  /** Look the position up again (silently, no prompt unless `ask`). */
+  refreshLocation: (ask?: boolean) => Promise<void>;
   /** Ask the device for the current position. */
   locate: (lang?: 'ar' | 'en') => Promise<LocateResult>;
 }
 
 const PrayerContext = createContext<PrayerContextValue | null>(null);
 const KEY = 'quran.prayer';
-const DEFAULT: Stored = { loc: null, method: 'MuslimWorldLeague', madhab: 'shafi', hijriAdjust: 0, iqama: IQAMA_DEFAULTS, adhan: false, before: true, beforeMinutes: 10, alerts: DEFAULT_ALERTS };
+const DEFAULT: Stored = { loc: null, method: 'MuslimWorldLeague', madhab: 'shafi', hijriAdjust: 0, iqama: IQAMA_DEFAULTS, adhan: true, before: true, beforeMinutes: 10, alerts: DEFAULT_ALERTS, methodAuto: true, country: null, tune: NO_TUNE, v: 2 };
 
 export const PRAYER_KEYS: Record<PrayerName, TKey> = {
   fajr: 'prayerFajr',
@@ -62,7 +80,18 @@ export const PRAYER_KEYS: Record<PrayerName, TKey> = {
 
 export function PrayerProvider({ children }: { children: ReactNode }) {
   const { t } = useSettings();
-  const [data, setData] = useState<Stored>(() => { const saved = loadJSON<Partial<Stored>>(KEY, {}); return { ...DEFAULT, ...saved, iqama: { ...IQAMA_DEFAULTS, ...saved.iqama }, alerts: normalizeAlerts(saved.alerts) }; });
+  const [data, setData] = useState<Stored>(() => {
+    const saved = loadJSON<Partial<Stored>>(KEY, {});
+    const next: Stored = { ...DEFAULT, ...saved, iqama: { ...IQAMA_DEFAULTS, ...saved.iqama }, alerts: normalizeAlerts(saved.alerts), tune: normalizeTune(saved.tune) };
+    // Older installs had the prayer notifications off by default: move them to the new defaults once.
+    if ((saved.v ?? 1) < 2) { next.adhan = true; next.methodAuto = true; next.v = 2; }
+    return next;
+  });
+  // The calculation method follows the country; the minute adjustments apply to every time that is shown or scheduled.
+  const effectiveMethod: MethodId = data.methodAuto ? countryMethod(data.country) : data.method;
+  setPrayerTune(data.tune);
+  const [hijriVersion, setHijriVersion] = useState(() => { loadSavedHijri(); return 0; });
+  const [locationStatus, setLocationStatus] = useState<'granted' | 'denied' | 'unknown'>('unknown');
   const [now, setNow] = useState(() => new Date());
   const [adhanStatus, setAdhanStatus] = useState<ReminderResult | null>(null);
 
@@ -81,30 +110,87 @@ export function PrayerProvider({ children }: { children: ReactNode }) {
   const setAdhan = useCallback((adhan: boolean) => setData(d => ({ ...d, adhan })), []);
   const setBefore = useCallback((before: boolean) => setData(d => ({ ...d, before })), []);
   const setBeforeMinutes = useCallback((beforeMinutes: number) => setData(d => ({ ...d, beforeMinutes })), []);
+  const chooseMethod = useCallback((m: MethodId | 'auto') => setData(d => (m === 'auto' ? { ...d, methodAuto: true } : { ...d, method: m, methodAuto: false })), []);
+  const setTune = useCallback((prayer: keyof Tune, minutes: number) => setData(d => ({ ...d, tune: { ...d.tune, [prayer]: Math.max(-TUNE_LIMIT, Math.min(TUNE_LIMIT, Math.round(minutes))) } })), []);
   const setAlert = useCallback((key: AlertKey, on: boolean) => setData(d => ({ ...d, alerts: { ...d.alerts, [key]: on } })), []);
+
+  /** The name of the place and its country are only labels: look them up afterwards (best effort) for that position. */
+  const describePlace = useCallback((lat: number, lng: number) => {
+    void Location.reverseGeocodeAsync({ latitude: lat, longitude: lng })
+      .then(([place]) => {
+        const name = place?.city || place?.subregion || place?.district || place?.region;
+        const country = place?.isoCountryCode ?? null;
+        setData(d => (d.loc && d.loc.lat === lat && d.loc.lng === lng ? { ...d, country: country ?? d.country, loc: name ? { ...d.loc, name } : d.loc } : d));
+      })
+      .catch(() => {});
+  }, []);
 
   const locate = useCallback(async (_lang?: 'ar' | 'en'): Promise<LocateResult> => {
     try {
       const perm = await Location.requestForegroundPermissionsAsync();
-      if (!perm.granted) return 'denied';
+      if (!perm.granted) { setLocationStatus('denied'); return 'denied'; }
       const pos = (await Location.getLastKnownPositionAsync()) ?? (await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }));
       const { latitude: lat, longitude: lng } = pos.coords;
       setData(d => ({ ...d, loc: { lat, lng } }));
-      // The name is only a label: look it up afterwards (best effort) and attach it if the position is still the same.
-      void Location.reverseGeocodeAsync({ latitude: lat, longitude: lng })
-        .then(([place]) => {
-          const name = place?.city || place?.subregion || place?.district || place?.region;
-          if (name) setData(d => (d.loc && d.loc.lat === lat && d.loc.lng === lng ? { ...d, loc: { ...d.loc, name } } : d));
-        })
-        .catch(() => {});
+      setLocationStatus('granted');
+      describePlace(lat, lng);
       return 'ok';
     } catch {
       return 'unavailable';
     }
   }, []);
 
+  /**
+   * The position follows the phone: no setting to touch. When the app opens (and now and then while it is open) the
+   * position is read again silently and replaces the saved one if it moved more than a few kilometres. `ask` shows the
+   * system permission prompt (used once, when there is no position yet).
+   */
+  const refreshLocation = useCallback(async (ask = false) => {
+    try {
+      let perm = await Location.getForegroundPermissionsAsync();
+      if (!perm.granted && ask && perm.canAskAgain) perm = await Location.requestForegroundPermissionsAsync();
+      setLocationStatus(perm.granted ? 'granted' : perm.canAskAgain ? 'unknown' : 'denied');
+      if (!perm.granted) return;
+      const pos = (await Location.getLastKnownPositionAsync()) ?? (await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }));
+      if (!pos) return;
+      const { latitude: lat, longitude: lng } = pos.coords;
+      let moved = false;
+      setData(d => {
+        moved = !d.loc || distanceKm(d.loc, { lat, lng }) > 5;
+        return moved ? { ...d, loc: { lat, lng } } : d;
+      });
+      // A new place (or one saved without its country) gets its name and country.
+      if (moved || data.country === null) describePlace(lat, lng);
+    } catch {
+      /* no position right now: keep the saved one */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [describePlace]);
+
+  useEffect(() => {
+    let last = 0;
+    const run = (ask: boolean) => { if (Date.now() - last > 20 * 60_000) { last = Date.now(); void refreshLocation(ask); } };
+    // Ask once only when there is no position yet and the first-run setup is over.
+    run(!data.loc && loadJSON<boolean>('quran.onboarded', false) === true);
+    const sub = AppState.addEventListener('change', s => s === 'active' && run(false));
+    return () => sub.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // The real Hijri dates: from the network when online, refreshed on a new day and when the app comes back.
+  const todayKey = now.toDateString();
+  useEffect(() => {
+    let cancelled = false;
+    const run = () => void refreshHijri().then(changed => { if (changed && !cancelled) setHijriVersion(v => v + 1); });
+    run();
+    const sub = AppState.addEventListener('change', s => s === 'active' && run());
+    return () => { cancelled = true; sub.remove(); };
+  }, [todayKey]);
+
   // Keep the next week of prayer notifications up to date (on change, and each day the app is opened).
-  const { adhan, loc, method, madhab, before, beforeMinutes, alerts } = data;
+  const { adhan, loc, madhab, before, beforeMinutes, alerts } = data;
+  const method = effectiveMethod;
+  const tuneKey = JSON.stringify(data.tune);
   const alertsKey = JSON.stringify(alerts);
   const extras = {
     sunrise: { title: t('alertSunriseTitle'), body: t('alertSunriseBody') },
@@ -133,11 +219,17 @@ export function PrayerProvider({ children }: { children: ReactNode }) {
     return () => { cancelled = true; };
     // `names` is derived from `nameKey`
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [adhan, loc, method, madhab, before, beforeMinutes, channelName, soonChannelName, soonBody, nameKey, day, alertsKey, extraChannelName]);
+  }, [adhan, loc, method, madhab, before, beforeMinutes, channelName, soonChannelName, soonBody, nameKey, day, alertsKey, extraChannelName, tuneKey]);
 
   const value = useMemo<PrayerContextValue>(
     () => ({
       ...data,
+      method: effectiveMethod,
+      selectedMethod: data.method,
+      locationStatus,
+      refreshLocation,
+      chooseMethod,
+      setTune,
       now,
       times: loc ? timesFor(loc, now, method, madhab) : null,
       next: loc ? nextPrayer(loc, now, method, madhab) : null,
@@ -154,7 +246,7 @@ export function PrayerProvider({ children }: { children: ReactNode }) {
       setBeforeMinutes,
       locate,
     }),
-    [data, now, loc, method, madhab, adhanStatus, setMethod, setMadhab, setHijriAdjust, setIqama, setLocation, setAdhan, setBefore, setBeforeMinutes, setAlert, locate],
+    [data, now, loc, method, madhab, adhanStatus, hijriVersion, locationStatus, refreshLocation, chooseMethod, setTune, effectiveMethod, setMethod, setMadhab, setHijriAdjust, setIqama, setLocation, setAdhan, setBefore, setBeforeMinutes, setAlert, locate],
   );
 
   return <PrayerContext.Provider value={value}>{children}</PrayerContext.Provider>;

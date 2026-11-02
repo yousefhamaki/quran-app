@@ -13,6 +13,7 @@ import { pageOfIndex, pageRange, TOTAL_PAGES } from '@/lib/mushaf';
 import { NUMBER_COLORS } from '@/lib/mushaf-prefs';
 import { fetchSurah, normalize, type Ayah } from '@/lib/quran';
 import { HIGHLIGHT_COLORS, type HighlightColor } from '@/lib/study';
+import { useContentWidth } from '@/lib/layout';
 import { useLibrary } from '@/context/library';
 import { useUI } from '@/context/ui';
 import { usePlayer } from '@/context/player';
@@ -231,7 +232,7 @@ interface Props {
 export function MushafView({ surah, ayah, onNavigate }: Props) {
   const { t, memorize, setMemorize } = useSettings();
   const { markRead } = useLibrary();
-  const { width } = useWindowDimensions();
+  const width = useContentWidth();
   const [revealed, setRevealed] = useState<Set<string>>(() => new Set());
   const reveal = useCallback((key: string) => setRevealed(r => new Set(r).add(key)), []);
   const list = useRef<FlatList<number>>(null);

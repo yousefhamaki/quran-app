@@ -8,6 +8,7 @@ import { Text } from '@/components/ui/text';
 import { cn } from '@/lib/utils';
 import { HIJRI_MONTHS_AR, HIJRI_MONTHS_EN, hijriOf } from '@/lib/hijri';
 import { cornerPrayers, formatHMS, formatTime, prayerWindow, type DayTimes, type Location, type MadhabId, type MethodId, type PrayerName } from '@/lib/prayer';
+import { useContentWidth } from '@/lib/layout';
 import { PRAYER_KEYS } from '@/context/prayer';
 import { useSettings } from '@/context/settings';
 
@@ -37,7 +38,7 @@ interface Props {
  */
 export function PrayerRing({ loc, method, madhab, hijriAdjust, times }: Props) {
   const { t, isRTL } = useSettings();
-  const { width } = useWindowDimensions();
+  const width = useContentWidth();
   const now = useSecond();
   const locale = isRTL ? 'ar' : 'en';
   const primary = String(useCSSVariable('--color-primary') ?? '#0b5d4b');

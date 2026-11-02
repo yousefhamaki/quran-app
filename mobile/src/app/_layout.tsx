@@ -22,6 +22,7 @@ import { BottomNav, NAV_HEIGHT, useShowNav } from '@/components/bottom-nav';
 import { PlayerBar, PlayerSheet } from '@/components/player';
 import { Onboarding } from '@/components/sheets/onboarding';
 import { AlarmRinging } from '@/components/sheets/alarm-ringing';
+import { MAX_CONTENT_WIDTH, useIsTablet } from '@/lib/layout';
 import { AccountSheet } from '@/components/sheets/account-sheet';
 import { AyahSheet } from '@/components/sheets/ayah-sheet';
 import { DownloadSheet } from '@/components/sheets/download-sheet';
@@ -85,7 +86,9 @@ function OpenReminderTarget() {
 function OrientationGuard() {
   const pathname = usePathname();
   const { mushaf } = useSettings();
-  const free = pathname.startsWith('/surah') && mushaf.view !== 'list' && mushaf.allowLandscape;
+  const tablet = useIsTablet();
+  // A phone stays upright (except in the Mushaf when landscape is allowed); a tablet turns freely.
+  const free = tablet || (pathname.startsWith('/surah') && mushaf.view !== 'list' && mushaf.allowLandscape);
   useEffect(() => {
     if (Platform.OS === 'web') return;
     void (free ? ScreenOrientation.unlockAsync() : ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP)).catch(() => {});
@@ -99,11 +102,14 @@ function Shell() {
   const { theme } = useUniwind();
   return (
     <LayoutDirection rtl={isRTL}>
-      <View className="flex-1 bg-background">
+      <View className="flex-1 items-center bg-background">
         <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
-        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' }, animation: 'slide_from_right' }} />
-        <PlayerBar lifted={showNav} />
-        {showNav ? <BottomNav /> : null}
+        {/* On a tablet everything stays a reading-width column in the middle (the bars are positioned inside it). */}
+        <View style={{ flex: 1, width: '100%', maxWidth: MAX_CONTENT_WIDTH }}>
+          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' }, animation: 'slide_from_right' }} />
+          <PlayerBar lifted={showNav} />
+          {showNav ? <BottomNav /> : null}
+        </View>
         <AyahSheet />
         <TafsirSheet />
         <WordSheet />

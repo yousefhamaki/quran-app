@@ -1,7 +1,8 @@
 /**
- * Hijri (Islamic) calendar, calculated with the tabular civil algorithm.
- * It is accurate to about a day: real months start with the local moon sighting (or the Umm al-Qura table), which can
- * differ by one day, so every function takes an `adjust` in days (-2..+2) the user can set to match their country.
+ * Hijri (Islamic) calendar. Without data it is calculated with the tabular civil algorithm, which can be a day or two
+ * off the real calendar (real months start with the moon sighting or the Umm al-Qura table). When the app has been
+ * online it holds the real dates for the current and next month (see `setHijriTable`) and those win.
+ * Every function also takes an `adjust` in days (-2..+2) the user can set to match their country.
  * (No imports on purpose, so this file can be unit-tested with plain Node.)
  */
 
@@ -54,14 +55,48 @@ function jdnToHijri(jdn: number): HijriDate {
   return { year, month, day };
 }
 
+// ---------- real dates from the network ----------
+
+const pad2 = (n: number) => String(n).padStart(2, '0');
+const isoOf = (g: { y: number; m: number; d: number }) => `${g.y}-${pad2(g.m)}-${pad2(g.d)}`;
+
+/** Gregorian "YYYY-MM-DD" → [hijri year, month, day], as published by an official calendar. */
+export type HijriTable = Record<string, [number, number, number]>;
+let table: HijriTable = {};
+
+/** Replaces the known real dates (an empty table goes back to the calculated calendar). */
+export function setHijriTable(next: HijriTable) {
+  table = next;
+}
+export const getHijriTable = (): HijriTable => table;
+
 /** Hijri date of a Gregorian calendar day (month 1..12). `adjust` shifts the result by whole days. */
 export function toHijri(y: number, m: number, d: number, adjust = 0): HijriDate {
-  return jdnToHijri(gregorianToJdn(y, m, d) + adjust);
+  const jdn = gregorianToJdn(y, m, d) + adjust;
+  const known = table[isoOf(jdnToGregorian(jdn))];
+  return known ? { year: known[0], month: known[1], day: known[2] } : jdnToHijri(jdn);
+}
+
+/** First Gregorian day (as a Julian day number) and length of a Hijri month, when the table knows them. */
+function knownMonth(year: number, month: number): { start: number; length: number } | null {
+  let start: number | null = null;
+  let last = 0;
+  for (const [iso, [hy, hm, hd]] of Object.entries(table)) {
+    if (hy !== year || hm !== month) continue;
+    if (hd === 1) { const [y, m, d] = iso.split('-').map(Number); start = gregorianToJdn(y, m, d); }
+    if (hd > last) last = hd;
+  }
+  if (start === null) return null;
+  // The month has 29 or 30 days: it is only certain when the table reaches day 29, or day 30.
+  const length = last === 30 ? 30 : last === 29 ? 29 : monthLength(year, month);
+  return { start, length };
 }
 
 /** Gregorian calendar day (month 1..12) of a Hijri date. */
 export function fromHijri(year: number, month: number, day: number, adjust = 0): { y: number; m: number; d: number } {
-  return jdnToGregorian(hijriToJdn(year, month, day) - adjust);
+  const known = knownMonth(year, month);
+  const jdn = known ? known.start + day - 1 : hijriToJdn(year, month, day);
+  return jdnToGregorian(jdn - adjust);
 }
 
 /** Hijri date of a JS Date's local day. */
@@ -82,7 +117,8 @@ const pad = (n: number) => String(n).padStart(2, '0');
 
 /** Every day of a Hijri month with its Gregorian date. */
 export function monthDays(year: number, month: number, adjust = 0): CalendarCell[] {
-  return Array.from({ length: monthLength(year, month) }, (_, i) => {
+  const length = knownMonth(year, month)?.length ?? monthLength(year, month);
+  return Array.from({ length }, (_, i) => {
     const g = fromHijri(year, month, i + 1, adjust);
     return { day: i + 1, iso: `${g.y}-${pad(g.m)}-${pad(g.d)}`, weekday: new Date(g.y, g.m - 1, g.d).getDay() };
   });
