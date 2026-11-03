@@ -1,15 +1,40 @@
 import { addDays, dateString } from './habit';
 import { ayahOfDayText } from './dailyayah';
 import { buildWidgetData, inputsFromApp } from './widget-data';
-import AyahWidget from '../widgets/ayah-widget.ios';
-import PrayerRing from '../widgets/prayer-ring.ios';
-import PrayerTimes from '../widgets/prayer-times.ios';
-import NextPrayer from '../widgets/next-prayer.ios';
-import HijriEvents from '../widgets/hijri-events.ios';
-import ReadingStreak from '../widgets/reading-streak.ios';
-import KhatmahProgress from '../widgets/khatmah-progress.ios';
-import ContinueReading from '../widgets/continue-reading.ios';
-import AdhkarNow from '../widgets/adhkar-now.ios';
+
+
+type TimelineWidget = { updateTimeline: (entries: { date: Date; props: object }[]) => void };
+
+/**
+ * The widgets are loaded only when they are refreshed (and one that fails to load is skipped), so a problem in a widget
+ * can never stop the app from opening.
+ */
+function widget(name: string): TimelineWidget | null {
+  try {
+    switch (name) {
+      case 'AyahOfDay': return require('../widgets/ayah-widget.ios').default;
+      case 'PrayerRing': return require('../widgets/prayer-ring.ios').default;
+      case 'PrayerTimes': return require('../widgets/prayer-times.ios').default;
+      case 'NextPrayer': return require('../widgets/next-prayer.ios').default;
+      case 'HijriEvents': return require('../widgets/hijri-events.ios').default;
+      case 'ReadingStreak': return require('../widgets/reading-streak.ios').default;
+      case 'KhatmahProgress': return require('../widgets/khatmah-progress.ios').default;
+      case 'ContinueReading': return require('../widgets/continue-reading.ios').default;
+      case 'AdhkarNow': return require('../widgets/adhkar-now.ios').default;
+    }
+  } catch {
+    /* this widget is not available in this build */
+  }
+  return null;
+}
+
+const push = (name: string, entries: { date: Date; props: object }[]) => {
+  try {
+    widget(name)?.updateTimeline(entries);
+  } catch {
+    /* not set up */
+  }
+};
 
 const DAYS_AHEAD = 7;
 /** The ring fills as time goes by, so give the prayer widgets a fresh entry this often (the countdown itself ticks on its own). */
@@ -27,7 +52,7 @@ async function refreshAyah() {
     const [y, m, d] = day.split('-').map(Number);
     entries.push({ date: i === 0 ? new Date() : new Date(y, m - 1, d, 0, 0, 5), props: { ar: text.ar, label: `${text.surahAr} · ${text.ref.ayah}` } });
   }
-  if (entries.length > 0) AyahWidget.updateTimeline(entries);
+  if (entries.length > 0) push('AyahOfDay', entries);
 }
 
 /**
@@ -50,14 +75,14 @@ function refreshPrayerWidgets() {
     }
   }
   const entries = [...stamps].sort((a, b) => a - b).map(t => ({ date: new Date(t), props: buildWidgetData(inputs, new Date(t)) }));
-  PrayerRing.updateTimeline(entries);
-  PrayerTimes.updateTimeline(entries);
-  NextPrayer.updateTimeline(entries);
+  push('PrayerRing', entries);
+  push('PrayerTimes', entries);
+  push('NextPrayer', entries);
   // Reading widgets: the same snapshots (the adhkar switch from morning to evening at Asr, the week rolls over at midnight).
-  ReadingStreak.updateTimeline(entries);
-  KhatmahProgress.updateTimeline(entries);
-  ContinueReading.updateTimeline(entries);
-  AdhkarNow.updateTimeline(entries);
+  push('ReadingStreak', entries);
+  push('KhatmahProgress', entries);
+  push('ContinueReading', entries);
+  push('AdhkarNow', entries);
 
   // Occasions only change at midnight.
   const days = [];
@@ -67,7 +92,7 @@ function refreshPrayerWidgets() {
     if (i > 0) d.setHours(0, 0, 5, 0);
     days.push({ date: i === 0 ? new Date() : d, props: buildWidgetData(inputs, d) });
   }
-  HijriEvents.updateTimeline(days);
+  push('HijriEvents', days);
 }
 
 export async function refreshWidgets(): Promise<void> {
