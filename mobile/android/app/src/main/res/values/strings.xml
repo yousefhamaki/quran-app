@@ -2,5 +2,13 @@
   <string name="app_name">Quran | القرآن</string>
   <string name="expo_system_ui_user_interface_style" translatable="false">automatic</string>
   <string name="widget_ayahofday_description" translatable="false">A new ayah every day</string>
+  <string name="widget_prayerring_description" translatable="false">Time left until the next prayer</string>
+  <string name="widget_prayertimes_description" translatable="false">Today\'s prayer times and the next prayer</string>
+  <string name="widget_nextprayer_description" translatable="false">The next prayer and its time</string>
+  <string name="widget_hijrievents_description" translatable="false">Today\'s Hijri date and coming Islamic occasions</string>
+  <string name="widget_readingstreak_description" translatable="false">Your streak and this week</string>
+  <string name="widget_khatmahprogress_description" translatable="false">Khatmah progress and today\'s portion</string>
+  <string name="widget_continuereading_description" translatable="false">Open where you stopped reading</string>
+  <string name="widget_adhkarnow_description" translatable="false">The adhkar for this time of day</string>
   <string name="expo_splash_screen_resize_mode" translatable="false">contain</string>
 </resources>

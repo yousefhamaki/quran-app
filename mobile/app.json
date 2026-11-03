@@ -88,6 +88,91 @@
                   "systemMedium"
                 ]
               }
+            },
+            {
+              "name": "PrayerRing",
+              "displayName": "Prayer countdown",
+              "description": "Time left until the next prayer",
+              "ios": {
+                "supportedFamilies": [
+                  "systemSmall"
+                ]
+              }
+            },
+            {
+              "name": "PrayerTimes",
+              "displayName": "Prayer times",
+              "description": "Today's prayer times and the next prayer",
+              "ios": {
+                "supportedFamilies": [
+                  "systemMedium"
+                ]
+              }
+            },
+            {
+              "name": "NextPrayer",
+              "displayName": "Next prayer",
+              "description": "The next prayer and its time",
+              "ios": {
+                "supportedFamilies": [
+                  "systemSmall"
+                ]
+              }
+            },
+            {
+              "name": "HijriEvents",
+              "displayName": "Hijri calendar",
+              "description": "Today's Hijri date and coming Islamic occasions",
+              "ios": {
+                "supportedFamilies": [
+                  "systemMedium",
+                  "systemLarge"
+                ]
+              }
+            },
+            {
+              "name": "ReadingStreak",
+              "displayName": "Reading streak",
+              "description": "Your streak and this week",
+              "ios": {
+                "supportedFamilies": [
+                  "systemSmall",
+                  "systemMedium"
+                ]
+              }
+            },
+            {
+              "name": "KhatmahProgress",
+              "displayName": "Khatmah progress",
+              "description": "Khatmah progress and today's portion",
+              "ios": {
+                "supportedFamilies": [
+                  "systemSmall",
+                  "systemMedium"
+                ]
+              }
+            },
+            {
+              "name": "ContinueReading",
+              "displayName": "Continue reading",
+              "description": "Open where you stopped reading",
+              "ios": {
+                "supportedFamilies": [
+                  "systemSmall",
+                  "systemMedium"
+                ]
+              }
+            },
+            {
+              "name": "AdhkarNow",
+              "displayName": "Morning and evening adhkar",
+              "description": "The adhkar for this time of day",
+              "ios": {
+                "supportedFamilies": [
+                  "systemSmall",
+                  "systemMedium"
+                ]
+              }
             }
           ]
         }
@@ -106,11 +191,100 @@
               "targetCellHeight": 2,
               "resizeMode": "horizontal|vertical",
               "updatePeriodMillis": 1800000
+            },
+            {
+              "name": "PrayerRing",
+              "label": "Prayer countdown",
+              "description": "Time left until the next prayer",
+              "minWidth": "110dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 2,
+              "targetCellHeight": 2,
+              "resizeMode": "horizontal|vertical",
+              "updatePeriodMillis": 1800000
+            },
+            {
+              "name": "PrayerTimes",
+              "label": "Prayer times",
+              "description": "Today's prayer times and the next prayer",
+              "minWidth": "250dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 2,
+              "resizeMode": "horizontal|vertical",
+              "updatePeriodMillis": 1800000
+            },
+            {
+              "name": "NextPrayer",
+              "label": "Next prayer",
+              "description": "The next prayer and its time",
+              "minWidth": "110dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 2,
+              "targetCellHeight": 2,
+              "resizeMode": "horizontal|vertical",
+              "updatePeriodMillis": 1800000
+            },
+            {
+              "name": "HijriEvents",
+              "label": "Hijri calendar",
+              "description": "Today's Hijri date and coming Islamic occasions",
+              "minWidth": "250dp",
+              "minHeight": "180dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 3,
+              "resizeMode": "horizontal|vertical",
+              "updatePeriodMillis": 1800000
+            },
+            {
+              "name": "ReadingStreak",
+              "label": "Reading streak",
+              "description": "Your streak and this week",
+              "minWidth": "180dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 3,
+              "targetCellHeight": 2,
+              "resizeMode": "horizontal|vertical",
+              "updatePeriodMillis": 1800000
+            },
+            {
+              "name": "KhatmahProgress",
+              "label": "Khatmah progress",
+              "description": "Khatmah progress and today's portion",
+              "minWidth": "250dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 2,
+              "resizeMode": "horizontal|vertical",
+              "updatePeriodMillis": 1800000
+            },
+            {
+              "name": "ContinueReading",
+              "label": "Continue reading",
+              "description": "Open where you stopped reading",
+              "minWidth": "110dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 2,
+              "targetCellHeight": 2,
+              "resizeMode": "horizontal|vertical",
+              "updatePeriodMillis": 1800000
+            },
+            {
+              "name": "AdhkarNow",
+              "label": "Morning and evening adhkar",
+              "description": "The adhkar for this time of day",
+              "minWidth": "110dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 2,
+              "targetCellHeight": 2,
+              "resizeMode": "horizontal|vertical",
+              "updatePeriodMillis": 1800000
             }
           ]
         }
       ],
       "./plugins/with-work-runtime-fix",
+      "./plugins/with-alarm-activity",
       [
         "expo-location",
         {

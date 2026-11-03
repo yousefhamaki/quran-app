@@ -113,7 +113,7 @@ export function HabitProvider({ children }: { children: ReactNode }) {
   useEffect(() => { if (isPlaying) recordRead(); }, [isPlaying, today, recordRead]);
 
   // Widgets show the ayah of the day: refresh them whenever the day changes or the app opens.
-  useEffect(() => { void refreshWidgets(); }, [today]);
+  useEffect(() => { void refreshWidgets(); }, [today, data.days, data.khatmah]);
 
   // (Re)schedule the next two weeks of reminders: on change, on a new day and each time the app opens.
   const { enabled, hour, minute, alarm = false, snooze = 10 } = data.reminder;

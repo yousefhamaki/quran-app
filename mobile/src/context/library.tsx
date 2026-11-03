@@ -1,3 +1,4 @@
+import { refreshWidgets } from '@/lib/widgets';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { loadJSON, saveJSON } from '@/lib/storage';
 import { annotate, markKey, type Annotation, type Annotations, type HighlightColor } from '@/lib/study';
@@ -30,7 +31,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   const [lastRead, setLastRead] = useState<Mark | null>(() => loadJSON<Mark | null>('quran.lastRead', null));
 
   useEffect(() => saveJSON('quran.bookmarks', bookmarks), [bookmarks]);
-  useEffect(() => saveJSON('quran.lastRead', lastRead), [lastRead]);
+  useEffect(() => { saveJSON('quran.lastRead', lastRead); void refreshWidgets(); }, [lastRead]);
   useEffect(() => saveJSON('quran.annotations', annotations), [annotations]);
   const annotationOf = useCallback((s: number, a: number) => annotations[markKey(s, a)], [annotations]);
   const setHighlight = useCallback((s: number, a: number, color: HighlightColor | null) => setAnnotations(all => annotate(all, s, a, { color })), []);

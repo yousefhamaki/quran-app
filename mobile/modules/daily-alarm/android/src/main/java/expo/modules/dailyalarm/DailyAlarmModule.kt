@@ -41,6 +41,20 @@ class DailyAlarmModule : Module() {
 
     Function("snooze") { AlarmService.send(context, AlarmService.ACTION_SNOOZE) }
 
+    /**
+     * While the alarm rings the app may show over the lock screen and light the screen (the alarm screen); the rest of the
+     * time it must stay behind the lock screen like any other app.
+     */
+    Function("showOverLockScreen") { on: Boolean ->
+      val activity = appContext.currentActivity
+      activity?.runOnUiThread {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+          activity.setShowWhenLocked(on)
+          activity.setTurnScreenOn(on)
+        }
+      }
+    }
+
     Function("canScheduleExact") { AlarmStore.canScheduleExact(context) }
 
     Function("openExactAlarmSettings") {

@@ -6,6 +6,7 @@ import { hijriOf, type HijriDate } from '@/lib/hijri';
 import { loadSavedHijri, refreshHijri } from '@/lib/hijri-online';
 import { DEFAULT_ALERTS, IQAMA_DEFAULTS, NO_TUNE, TUNE_LIMIT, countryMethod, distanceKm, nextPrayer, normalizeAlerts, normalizeTune, setPrayerTune, timesFor, type AlertKey, type Tune, type DayTimes, type IqamaMinutes, type Location as Place, type MadhabId, type MethodId, type Next, type PrayerName } from '@/lib/prayer';
 import { syncAdhan, type ReminderResult } from '@/lib/reminders';
+import { refreshWidgets } from '@/lib/widgets';
 import { useSettings } from '@/context/settings';
 import type { TKey } from '@/lib/i18n';
 
@@ -79,7 +80,7 @@ export const PRAYER_KEYS: Record<PrayerName, TKey> = {
 };
 
 export function PrayerProvider({ children }: { children: ReactNode }) {
-  const { t } = useSettings();
+  const { t, settings } = useSettings();
   const [data, setData] = useState<Stored>(() => {
     const saved = loadJSON<Partial<Stored>>(KEY, {});
     const next: Stored = { ...DEFAULT, ...saved, iqama: { ...IQAMA_DEFAULTS, ...saved.iqama }, alerts: normalizeAlerts(saved.alerts), tune: normalizeTune(saved.tune) };
@@ -96,6 +97,9 @@ export function PrayerProvider({ children }: { children: ReactNode }) {
   const [adhanStatus, setAdhanStatus] = useState<ReminderResult | null>(null);
 
   useEffect(() => saveJSON(KEY, data), [data]);
+
+  // The home-screen widgets show these times: redraw them whenever the place, method, tuning or language changes.
+  useEffect(() => { void refreshWidgets(); }, [data.loc, data.method, data.methodAuto, data.country, data.madhab, data.tune, data.hijriAdjust, settings.lang]);
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 30_000);
     const sub = AppState.addEventListener('change', s => s === 'active' && setNow(new Date()));

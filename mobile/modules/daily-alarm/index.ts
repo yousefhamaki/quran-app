@@ -25,6 +25,7 @@ interface Native {
   current(): RingingAlarm | null;
   stop(): void;
   snooze(): void;
+  showOverLockScreen(on: boolean): void;
   canScheduleExact(): boolean;
   openExactAlarmSettings(): void;
   canUseFullScreen(): boolean;
@@ -44,6 +45,7 @@ export const isAlarmRinging = (): boolean => native?.isRinging() ?? false;
 export const currentAlarm = (): RingingAlarm | null => native?.current() ?? null;
 export const stopAlarm = () => native?.stop();
 export const snoozeAlarm = () => native?.snooze();
+export const showOverLockScreen = (on: boolean) => native?.showOverLockScreen(on);
 export const canScheduleExactAlarms = (): boolean => native?.canScheduleExact() ?? true;
 export const openExactAlarmSettings = () => native?.openExactAlarmSettings();
 export const canUseFullScreenAlarm = (): boolean => native?.canUseFullScreen() ?? true;
