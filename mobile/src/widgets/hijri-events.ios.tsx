@@ -6,6 +6,14 @@ import type { WidgetData } from '../lib/widget-data';
 /** Today's date in both calendars and the coming Islamic occasions (medium and large). Runs in an isolated runtime: no outside values. */
 const HijriEvents = (data: WidgetData, environment: WidgetEnvironment) => {
   'widget';
+  // Before the app has sent this widget any data (just added, or the gallery preview) there is nothing to draw yet.
+  if (!data || !data.text || !data.study) {
+    return (
+      <VStack modifiers={[containerBackground('#0b3d33', 'widget'), padding({ all: 8 })]}>
+        <Text modifiers={[font({ size: 14, weight: 'semibold' }), foregroundStyle('#ffffff')]}>افتح التطبيق · Open the app</Text>
+      </VStack>
+    );
+  }
   const GOLD = '#e0b65a';
   const WHITE = '#ffffff';
   const MUTED = '#ffffffaa';
