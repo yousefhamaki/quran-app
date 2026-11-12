@@ -10,7 +10,7 @@ const HijriEvents = (data: WidgetData, environment: WidgetEnvironment) => {
   if (!data || !data.text || !data.study) {
     return (
       <VStack modifiers={[containerBackground('#0b3d33', 'widget'), padding({ all: 8 })]}>
-        <Text modifiers={[font({ size: 14, weight: 'semibold' }), foregroundStyle('#ffffff')]}>افتح التطبيق · Open the app</Text>
+        <Text modifiers={[font({ size: data && data.err ? 9 : 14, weight: 'semibold' }), foregroundStyle('#ffffff')]}>{data && data.err ? data.err : 'افتح التطبيق · Open the app'}</Text>
       </VStack>
     );
   }

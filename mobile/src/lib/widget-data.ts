@@ -11,6 +11,8 @@ import { ADHAN_PRAYERS, NO_TUNE, countryMethod, formatTime, nextPrayer, normaliz
  * epoch milliseconds and all text is already in the user's language.
  */
 export interface WidgetData {
+  /** Set instead of everything else when the app could not prepare the widget; the widget then shows it. */
+  err?: string;
   lang: 'ar' | 'en';
   /** False until the user has a location (prayer times need one). */
   ready: boolean;

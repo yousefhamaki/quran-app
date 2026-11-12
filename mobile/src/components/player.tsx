@@ -78,16 +78,13 @@ export function PlayerBar({ lifted = false }: { /** Float above the bottom navig
             accessibilityLabel={t('expand')}
             className="flex-1 flex-row items-center gap-3 rounded-2xl p-1 active:bg-accent/50"
           >
-            <View className="size-11 items-center justify-center rounded-2xl bg-primary">
-              <Text className="font-semibold text-primary-foreground">{playing.ayah || playing.surah}</Text>
-            </View>
             <View className="flex-1">
               <Text numberOfLines={1} className="text-sm font-medium">{surah ? (settings.lang === 'ar' ? surah.name : surah.englishName) : ''}</Text>
               <Text numberOfLines={1} className={cn('text-xs', failed ? 'text-destructive' : inGap ? 'font-medium text-gold-foreground' : 'text-muted-foreground')} accessibilityLiveRegion={inGap ? 'polite' : 'none'}>
                 {subtitle}
               </Text>
             </View>
-            <Icon as={ChevronUp} className="size-5 text-muted-foreground" />
+            <Icon as={ChevronUp} strokeWidth={3} className="size-7 text-primary" />
           </Pressable>
           <Button variant="ghost" size="icon" className="size-11 rounded-full" onPress={previous} accessibilityLabel={t('previous')}>
             <Icon as={SkipBack} className="size-5 rtl:-scale-x-100" />

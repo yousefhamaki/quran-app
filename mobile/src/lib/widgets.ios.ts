@@ -28,13 +28,31 @@ function widget(name: string): TimelineWidget | null {
   return null;
 }
 
+const failures: string[] = [];
+const message = (e: unknown) => (e instanceof Error ? e.message : String(e)).slice(0, 120);
+
 const push = (name: string, entries: { date: Date; props: object }[]) => {
   try {
-    widget(name)?.updateTimeline(entries);
-  } catch {
-    /* not set up */
+    const w = widget(name);
+    if (!w) failures.push(`${name}: not loaded`);
+    else w.updateTimeline(entries);
+  } catch (e) {
+    failures.push(`${name}: ${message(e)}`);
   }
 };
+
+/** If something went wrong, say so on the widgets themselves (they show it instead of staying blank). */
+function reportFailures() {
+  if (failures.length === 0) return;
+  const err = failures[0];
+  for (const name of ['PrayerRing', 'PrayerTimes', 'NextPrayer', 'HijriEvents', 'ReadingStreak', 'KhatmahProgress', 'ContinueReading', 'AdhkarNow']) {
+    try {
+      widget(name)?.updateTimeline([{ date: new Date(), props: { err } }]);
+    } catch {
+      /* nothing more to do */
+    }
+  }
+}
 
 const DAYS_AHEAD = 7;
 /** The ring fills as time goes by, so give the prayer widgets a fresh entry this often (the countdown itself ticks on its own). */
@@ -62,23 +80,24 @@ async function refreshAyah() {
 function refreshPrayerWidgets() {
   const inputs = inputsFromApp();
   const start = Date.now();
+  const horizon = start + PRAYER_HOURS_AHEAD * 3_600_000;
   const stamps = new Set<number>([start]);
-  for (let m = STEP_MINUTES; m <= PRAYER_HOURS_AHEAD * 60; m += STEP_MINUTES) stamps.add(start + m * 60_000);
+  // The ring fills as time goes by: a few entries over the next hours, then one at each prayer so "next prayer" flips on time.
+  for (let h = 2; h <= 12; h += 2) stamps.add(start + h * 3_600_000);
   if (inputs.loc) {
-    // Land exactly on each prayer so the "next prayer" flips on time.
     let cursor = new Date(start);
     for (let i = 0; i < 9; i++) {
       const snap = buildWidgetData(inputs, cursor, 0);
-      if (!snap.next || snap.next.at > start + PRAYER_HOURS_AHEAD * 3_600_000) break;
+      if (!snap.next || snap.next.at > horizon) break;
       stamps.add(snap.next.at + 1000);
       cursor = new Date(snap.next.at + 2000);
     }
   }
-  const entries = [...stamps].sort((a, b) => a - b).map(t => ({ date: new Date(t), props: buildWidgetData(inputs, new Date(t)) }));
+  // Only a handful of small snapshots: the shared storage the widgets read from is limited in size.
+  const entries = [...stamps].sort((a, b) => a - b).map(t => ({ date: new Date(t), props: buildWidgetData(inputs, new Date(t), 0) }));
   push('PrayerRing', entries);
   push('PrayerTimes', entries);
   push('NextPrayer', entries);
-  // Reading widgets: the same snapshots (the adhkar switch from morning to evening at Asr, the week rolls over at midnight).
   push('ReadingStreak', entries);
   push('KhatmahProgress', entries);
   push('ContinueReading', entries);
@@ -96,14 +115,15 @@ function refreshPrayerWidgets() {
 }
 
 export async function refreshWidgets(): Promise<void> {
+  failures.length = 0;
   try {
     refreshPrayerWidgets();
-  } catch {
-    /* widget not set up (e.g. a build without the extension) */
+  } catch (e) {
+    failures.push(message(e));
   }
   try {
     await refreshAyah();
   } catch {
     /* offline or no extension */
-  }
+  }  reportFailures();
 }
