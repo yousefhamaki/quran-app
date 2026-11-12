@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dailyalarm_widget_ring_label">العدّ التنازلي للصلاة</string>
+    <string name="dailyalarm_widget_ring_desc">الوقت المتبقي على الصلاة القادمة</string>
+    <string name="dailyalarm_widget_next_label">الصلاة القادمة</string>
+    <string name="dailyalarm_widget_next_desc">الصلاة القادمة ووقتها</string>
+    <string name="dailyalarm_widget_times_label">مواقيت الصلاة</string>
+    <string name="dailyalarm_widget_times_desc">مواقيت صلاة اليوم والصلاة القادمة</string>
+</resources>

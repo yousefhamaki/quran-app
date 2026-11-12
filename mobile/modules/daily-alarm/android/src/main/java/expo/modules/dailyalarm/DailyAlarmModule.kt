@@ -55,6 +55,11 @@ class DailyAlarmModule : Module() {
       }
     }
 
+    /** The snapshot of coming prayers the native prayer widgets draw from (see PrayerWidgets). */
+    Function("setPrayerWidgetData") { json: String ->
+      PrayerWidgets.save(context, json)
+    }
+
     Function("canScheduleExact") { AlarmStore.canScheduleExact(context) }
 
     Function("openExactAlarmSettings") {

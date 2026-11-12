@@ -31,11 +31,17 @@ function widget(name: string): TimelineWidget | null {
 const failures: string[] = [];
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e)).slice(0, 120);
 
+/**
+ * The shared storage the widgets read from only holds plain values: a `null` anywhere makes iOS refuse the whole timeline
+ * (the widget then stays blank). Drop every null / undefined before saving.
+ */
+const plain = <T,>(value: T): T => JSON.parse(JSON.stringify(value, (_key, v) => (v === null || v === undefined ? undefined : v)));
+
 const push = (name: string, entries: { date: Date; props: object }[]) => {
   try {
     const w = widget(name);
     if (!w) failures.push(`${name}: not loaded`);
-    else w.updateTimeline(entries);
+    else w.updateTimeline(entries.map(e => ({ date: e.date, props: plain(e.props) })));
   } catch (e) {
     failures.push(`${name}: ${message(e)}`);
   }

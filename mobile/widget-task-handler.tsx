@@ -1,6 +1,6 @@
 import type { WidgetTaskHandlerProps } from 'react-native-android-widget';
 import { AyahWidget } from './src/widgets/ayah-widget.android';
-import { HijriEventsWidget, NextPrayerWidget, PrayerRingWidget, PrayerTimesWidget } from './src/widgets/prayer-widgets.android';
+import { HijriEventsWidget } from './src/widgets/prayer-widgets.android';
 import { AdhkarNowWidget, ContinueReadingWidget, KhatmahProgressWidget, ReadingStreakWidget } from './src/widgets/study-widgets.android';
 import { ayahOfDayText } from './src/lib/dailyayah';
 import { dateString } from './src/lib/habit';
@@ -19,10 +19,7 @@ export async function widgetTaskHandler(props: WidgetTaskHandlerProps) {
         break;
       }
       const data = buildWidgetData(await inputsFromStorage(), new Date());
-      if (name === 'PrayerRing') props.renderWidget(<PrayerRingWidget data={data} />);
-      else if (name === 'PrayerTimes') props.renderWidget(<PrayerTimesWidget data={data} />);
-      else if (name === 'NextPrayer') props.renderWidget(<NextPrayerWidget data={data} />);
-      else if (name === 'HijriEvents') props.renderWidget(<HijriEventsWidget data={data} />);
+      if (name === 'HijriEvents') props.renderWidget(<HijriEventsWidget data={data} />);
       else if (name === 'ReadingStreak') props.renderWidget(<ReadingStreakWidget data={data} />);
       else if (name === 'KhatmahProgress') props.renderWidget(<KhatmahProgressWidget data={data} />);
       else if (name === 'ContinueReading') props.renderWidget(<ContinueReadingWidget data={data} />);

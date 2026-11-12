@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dailyalarm_widget_ring_label">Prayer countdown</string>
+    <string name="dailyalarm_widget_ring_desc">Time left until the next prayer</string>
+    <string name="dailyalarm_widget_next_label">Next prayer</string>
+    <string name="dailyalarm_widget_next_desc">The next prayer and its time</string>
+    <string name="dailyalarm_widget_times_label">Prayer times</string>
+    <string name="dailyalarm_widget_times_desc">Today\'s prayer times and the next prayer</string>
+</resources>

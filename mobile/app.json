@@ -193,39 +193,6 @@
               "updatePeriodMillis": 1800000
             },
             {
-              "name": "PrayerRing",
-              "label": "Prayer countdown",
-              "description": "Time left until the next prayer",
-              "minWidth": "110dp",
-              "minHeight": "110dp",
-              "targetCellWidth": 2,
-              "targetCellHeight": 2,
-              "resizeMode": "horizontal|vertical",
-              "updatePeriodMillis": 1800000
-            },
-            {
-              "name": "PrayerTimes",
-              "label": "Prayer times",
-              "description": "Today's prayer times and the next prayer",
-              "minWidth": "250dp",
-              "minHeight": "110dp",
-              "targetCellWidth": 4,
-              "targetCellHeight": 2,
-              "resizeMode": "horizontal|vertical",
-              "updatePeriodMillis": 1800000
-            },
-            {
-              "name": "NextPrayer",
-              "label": "Next prayer",
-              "description": "The next prayer and its time",
-              "minWidth": "110dp",
-              "minHeight": "110dp",
-              "targetCellWidth": 2,
-              "targetCellHeight": 2,
-              "resizeMode": "horizontal|vertical",
-              "updatePeriodMillis": 1800000
-            },
-            {
               "name": "HijriEvents",
               "label": "Hijri calendar",
               "description": "Today's Hijri date and coming Islamic occasions",

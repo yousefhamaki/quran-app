@@ -54,27 +54,6 @@
       </intent-filter>
       <meta-data android:name="android.appwidget.provider" android:resource="@xml/widgetprovider_ayahofday"/>
     </receiver>
-    <receiver android:name=".widget.PrayerRing" android:exported="false" android:label="Prayer countdown">
-      <intent-filter>
-        <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
-        <action android:name="com.Anspire.Quran.WIDGET_CLICK"/>
-      </intent-filter>
-      <meta-data android:name="android.appwidget.provider" android:resource="@xml/widgetprovider_prayerring"/>
-    </receiver>
-    <receiver android:name=".widget.PrayerTimes" android:exported="false" android:label="Prayer times">
-      <intent-filter>
-        <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
-        <action android:name="com.Anspire.Quran.WIDGET_CLICK"/>
-      </intent-filter>
-      <meta-data android:name="android.appwidget.provider" android:resource="@xml/widgetprovider_prayertimes"/>
-    </receiver>
-    <receiver android:name=".widget.NextPrayer" android:exported="false" android:label="Next prayer">
-      <intent-filter>
-        <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
-        <action android:name="com.Anspire.Quran.WIDGET_CLICK"/>
-      </intent-filter>
-      <meta-data android:name="android.appwidget.provider" android:resource="@xml/widgetprovider_nextprayer"/>
-    </receiver>
     <receiver android:name=".widget.HijriEvents" android:exported="false" android:label="Hijri calendar">
       <intent-filter>
         <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>

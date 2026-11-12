@@ -171,6 +171,36 @@ export function buildWidgetData(inputs: WidgetInputs, now: Date, eventCount = 7)
   };
 }
 
+/**
+ * What the native Android prayer widgets draw from: the next ~4 days of prayers and each day's six times. The widgets pick
+ * the prayer that is next at the moment they are drawn, so this stays right for days without the app being opened.
+ */
+export function prayerWidgetSnapshot(inputs: WidgetInputs, now: Date) {
+  const { lang, loc, method, madhab, tune } = inputs;
+  const locale = lang === 'ar' ? 'ar' : 'en-US';
+  if (!loc) return { ready: false, setup: TEXT[lang].setup, upcoming: [], days: [] };
+  const labels = LABELS[lang];
+  const upcoming: { key: PrayerName; label: string; time: string; at: number; prevAt: number }[] = [];
+  let cursor = now;
+  for (let i = 0; i < 24; i++) {
+    const win = prayerWindow(loc, cursor, method, madhab);
+    upcoming.push({ key: win.next.name, label: labels[win.next.name], time: formatTime(win.next.at, locale), at: win.next.at.getTime(), prevAt: win.prev.at.getTime() });
+    cursor = new Date(win.next.at.getTime() + 2000);
+  }
+  const days = [];
+  for (let d = 0; d < 5; d++) {
+    const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() + d, 12);
+    const times = timesFor(loc, date, method, madhab, tune);
+    days.push({
+      y: date.getFullYear(),
+      m: date.getMonth() + 1,
+      d: date.getDate(),
+      rows: (['fajr', 'sunrise', 'dhuhr', 'asr', 'maghrib', 'isha'] as PrayerName[]).map(key => ({ key, label: labels[key], short: lang === 'ar' ? labels[key] : SHORT_EN[key] ?? labels[key], time: formatTime(times[key], locale) })),
+    });
+  }
+  return { ready: true, setup: '', upcoming, days };
+}
+
 // ---------- reading what the app saved ----------
 
 interface SavedHabit { khatmah?: Khatmah | null; days?: string[] }

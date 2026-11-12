@@ -17,6 +17,38 @@
       </intent-filter>
     </receiver>
 
+    <receiver
+      android:name="expo.modules.dailyalarm.PrayerRingProvider"
+      android:exported="true"
+      android:label="@string/dailyalarm_widget_ring_label">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+      </intent-filter>
+      <meta-data android:name="android.appwidget.provider" android:resource="@xml/dailyalarm_widget_prayer_ring_info" />
+    </receiver>
+
+    <receiver
+      android:name="expo.modules.dailyalarm.NextPrayerProvider"
+      android:exported="true"
+      android:label="@string/dailyalarm_widget_next_label">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+      </intent-filter>
+      <meta-data android:name="android.appwidget.provider" android:resource="@xml/dailyalarm_widget_next_prayer_info" />
+    </receiver>
+
+    <receiver
+      android:name="expo.modules.dailyalarm.PrayerTimesProvider"
+      android:exported="true"
+      android:label="@string/dailyalarm_widget_times_label">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+      </intent-filter>
+      <meta-data android:name="android.appwidget.provider" android:resource="@xml/dailyalarm_widget_prayer_times_info" />
+    </receiver>
+
+    <receiver android:name="expo.modules.dailyalarm.PrayerWidgetRefreshReceiver" android:exported="false" />
+
     <service
       android:name="expo.modules.dailyalarm.AlarmService"
       android:exported="false"
