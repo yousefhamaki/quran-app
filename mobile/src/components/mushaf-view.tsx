@@ -6,6 +6,7 @@ import { JumpSheet } from '@/components/sheets/jump-sheet';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AllahText } from '@/components/allah-text';
 import { Text } from '@/components/ui/text';
 import { cn } from '@/lib/utils';
 import { indexOf, locate } from '@/lib/habit';
@@ -93,7 +94,7 @@ function SurahHeader({ number }: { number: number }) {
         <Text className="font-quran text-3xl text-gold-foreground" style={{ lineHeight: 76, paddingVertical: 8 }}>{name}</Text>
       )}
       {number !== 1 && number !== 9 ? (
-        <Text className="font-quran py-2 text-2xl" accessibilityLabel={t('bismillah')} style={{ lineHeight: 52, paddingVertical: 4 }}>بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</Text>
+        <Text className="font-quran py-2 text-2xl" accessibilityLabel={t('bismillah')} style={{ lineHeight: 52, paddingVertical: 4 }}><AllahText text="بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ" /></Text>
       ) : null}
     </View>
   );
@@ -185,7 +186,7 @@ const MushafPage = memo(function MushafPage({ page, width, memorize, revealed, o
                         style={bgOf(a.surah, a.number, isPlaying)}
                       >
                         <Text className={cn('font-quran', hiddenOf(a.surah, a.number) && 'text-muted-foreground/60')} style={textStyle}>
-                          {hiddenOf(a.surah, a.number) ? mask(a.text) : a.text}{' '}
+                          {hiddenOf(a.surah, a.number) ? mask(a.text) : <AllahText text={a.text} />}{' '}
                           <Text className="font-quran" style={{ fontSize: size * 0.6, color: numberColor }}>{num(a.number)}</Text>
                         </Text>
                       </Pressable>
@@ -205,7 +206,7 @@ const MushafPage = memo(function MushafPage({ page, width, memorize, revealed, o
                         accessibilityLabel={`${t('ayah')} ${a.number}`}
                         style={bgOf(a.surah, a.number, isPlaying)}
                       >
-                        <Text className={cn('font-quran', hiddenOf(a.surah, a.number) && 'text-muted-foreground/60')}>{hiddenOf(a.surah, a.number) ? mask(a.text) : a.text}</Text>{' '}
+                        <Text className={cn('font-quran', hiddenOf(a.surah, a.number) && 'text-muted-foreground/60')}>{hiddenOf(a.surah, a.number) ? mask(a.text) : <AllahText text={a.text} />}</Text>{' '}
                         <Text className="font-quran" style={{ fontSize: size * 0.6, color: numberColor }}>{num(a.number)}{annotationOf(a.surah, a.number)?.note ? ' ✎' : ''}</Text>{' '}
                       </Text>
                     );

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useCSSVariable, useUniwind } from 'uniwind';
 import { Text } from '@/components/ui/text';
 import { fetchWordSegments } from '@/lib/quran';
+import { ALLAH_COLOR, isAllahWord } from '@/lib/allah';
 import { tajweedColor, wordText, type Word } from '@/lib/tajweed';
 import { activeWordAt, estimateSegments, type WordSegment } from '@/lib/wordtiming';
 import { usePlayer } from '@/context/player';
@@ -98,23 +99,28 @@ export function AyahWords({ words, active, surah, ayah }: Props) {
   const dark = theme === 'dark';
   const index = useActiveWord({ enabled: active && wordHighlight, surah, ayah, words });
   const highlight = withAlpha(primary, 0.22);
+  const allahColor = ALLAH_COLOR[dark ? 'dark' : 'light'];
 
   return (
     <>
-      {words.map((word, i) => (
-        <Text key={i} className="font-quran" onPress={() => setWord({ surah, ayah, index: i })} accessibilityRole="button" style={i === index ? { backgroundColor: highlight } : undefined}>
+      {words.map((word, i) => {
+        // The name of Allah is always red, over the tajweed colours too.
+        const allah = isAllahWord(wordText(word));
+        return (
+        <Text key={i} className="font-quran" onPress={() => setWord({ surah, ayah, index: i })} accessibilityRole="button" style={{ ...(i === index ? { backgroundColor: highlight } : null), ...(allah ? { color: allahColor } : null) }}>
           {/* Separate pieces of text cannot join as Arabic letters, so a word is only split where the colour changes
               (and not at all without tajweed colours): that keeps the letters connected and the word unbreakable. */}
           {tajweed
             ? joinChunks(word).map((chunk, j) => (
-                <Text key={j} className="font-quran" style={chunk.cls ? { color: tajweedColor(chunk.cls, dark) } : undefined}>
+                <Text key={j} className="font-quran" style={allah ? { color: allahColor } : chunk.cls ? { color: tajweedColor(chunk.cls, dark) } : undefined}>
                   {chunk.text}
                 </Text>
               ))
             : wordText(word)}
           {i < words.length - 1 ? ' ' : ''}
         </Text>
-      ))}
+        );
+      })}
     </>
   );
 }

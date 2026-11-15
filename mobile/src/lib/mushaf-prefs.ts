@@ -66,12 +66,12 @@ export const stepFont = (size: number, direction: 1 | -1): number => Math.min(FO
 
 // ---------- the four text sizes ----------
 
-/** The Quran text comes in four sizes only. */
-export type TextSize = 'small' | 'normal' | 'big' | 'huge';
-export const TEXT_SIZES: TextSize[] = ['small', 'normal', 'big', 'huge'];
+/** The Quran text comes in five sizes only (tiny fits about six ayahs on the screen). */
+export type TextSize = 'tiny' | 'small' | 'normal' | 'big' | 'huge';
+export const TEXT_SIZES: TextSize[] = ['tiny', 'small', 'normal', 'big', 'huge'];
 
 /** Each size relative to "normal". */
-const TEXT_SIZE_SCALE: Record<TextSize, number> = { small: 0.8, normal: 1, big: 1.25, huge: 1.55 };
+const TEXT_SIZE_SCALE: Record<TextSize, number> = { tiny: 0.6, small: 0.8, normal: 1, big: 1.25, huge: 1.55 };
 
 /** Pixel size of a text size, given the size of "normal" on this platform (even numbers only). */
 export const fontSizeFor = (size: TextSize, normalPx: number): number => Math.round((normalPx * TEXT_SIZE_SCALE[size]) / 2) * 2;
@@ -87,5 +87,5 @@ export function textSizeOf(px: number, normalPx: number): TextSize {
   return best;
 }
 
-/** A stored pixel size moved onto one of the four sizes. */
+/** A stored pixel size moved onto one of the sizes. */
 export const snapFontSize = (px: number, normalPx: number): number => fontSizeFor(textSizeOf(Number(px) || normalPx, normalPx), normalPx);

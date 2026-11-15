@@ -178,6 +178,8 @@ class PrayerRingProvider : PrayerProvider() {
   override fun build(context: Context, snap: PrayerWidgets.Snapshot?, st: PrayerWidgets.State?): RemoteViews {
     if (st == null) return empty(context, R.layout.dailyalarm_widget_prayer_ring, snap)
     val v = RemoteViews(context.packageName, R.layout.dailyalarm_widget_prayer_ring)
+    v.setViewVisibility(R.id.empty, android.view.View.GONE)
+    v.setViewVisibility(R.id.content, android.view.View.VISIBLE)
     v.setImageViewBitmap(R.id.ring, PrayerWidgets.ringBitmap(st.progress))
     PrayerWidgets.countdown(v, R.id.countdown, st.next.at)
     v.setTextViewText(R.id.label, st.next.label)
@@ -195,6 +197,8 @@ class NextPrayerProvider : PrayerProvider() {
   override fun build(context: Context, snap: PrayerWidgets.Snapshot?, st: PrayerWidgets.State?): RemoteViews {
     if (st == null) return empty(context, R.layout.dailyalarm_widget_next_prayer, snap)
     val v = RemoteViews(context.packageName, R.layout.dailyalarm_widget_next_prayer)
+    v.setViewVisibility(R.id.empty, android.view.View.GONE)
+    v.setViewVisibility(R.id.content, android.view.View.VISIBLE)
     v.setTextViewText(R.id.label, st.next.label)
     v.setTextViewText(R.id.time, st.next.time)
     v.setProgressBar(R.id.bar, 1000, (st.progress * 1000).toInt(), false)
@@ -209,6 +213,8 @@ class PrayerTimesProvider : PrayerProvider() {
   override fun build(context: Context, snap: PrayerWidgets.Snapshot?, st: PrayerWidgets.State?): RemoteViews {
     if (st == null) return empty(context, R.layout.dailyalarm_widget_prayer_times, snap)
     val v = RemoteViews(context.packageName, R.layout.dailyalarm_widget_prayer_times)
+    v.setViewVisibility(R.id.empty, android.view.View.GONE)
+    v.setViewVisibility(R.id.content, android.view.View.VISIBLE)
     v.setTextViewText(R.id.label, st.next.label)
     v.setTextViewText(R.id.time, st.next.time)
     PrayerWidgets.countdown(v, R.id.countdown, st.next.at)

@@ -650,3 +650,18 @@ test('Egyptian method puts Fajr earlier than the Muslim World League in Egypt, a
   assert.deepEqual(normalizeTune(undefined), NO_TUNE);
   assert.ok(Math.abs(distanceKm({ lat: 30.0444, lng: 31.2357 }, { lat: 21.4225, lng: 39.8262 }) - 1287) < 5, 'Cairo to the Kaaba is about 1,287 km');
 });
+
+import { isAllahWord, splitAllah } from '../mobile/src/lib/allah.ts';
+
+test('allah: finds the name of Allah with and without particles, not other words', () => {
+  for (const w of ['ٱللَّهِ', 'ٱللَّهُ', 'ٱللَّهَ', 'لِلَّهِ', 'وَٱللَّهُ', 'بِٱللَّهِ', 'فَٱللَّهُ', 'تَٱللَّهِ', 'وَلِلَّهِ']) assert.equal(isAllahWord(w), true, w);
+  for (const w of ['ٱللَّهُمَّ', 'إِلَٰهَ', 'ٱلرَّحْمَٰنِ', 'ٱلرَّحِيمِ', 'ٱلْحَمْدُ', 'رَبِّ']) assert.equal(isAllahWord(w), false, w);
+});
+
+test('allah: splitAllah keeps the rest of the text together', () => {
+  const runs = splitAllah('بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ');
+  assert.deepEqual(runs.map(r => r.allah), [false, true, false]);
+  assert.equal(runs.map(r => r.text).join(''), 'بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ');
+  assert.equal(splitAllah('ٱلْحَمْدُ لِلَّهِ رَبِّ ٱلْعَٰلَمِينَ').filter(r => r.allah).length, 1);
+  assert.equal(splitAllah('رَبِّ').length, 1);
+});

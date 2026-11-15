@@ -38,7 +38,7 @@ export function MushafSettingsSheet({ onOpenGeneral }: { onOpenGeneral: () => vo
   const { theme } = useUniwind();
   const normalPx = DEFAULT_SETTINGS.fontSize;
   const size = textSizeOf(settings.fontSize, normalPx);
-  const SIZE_LABEL: Record<TextSize, TKey> = { small: 'textSizeSmall', normal: 'textSizeNormal', big: 'textSizeBig', huge: 'textSizeHuge' };
+  const SIZE_LABEL: Record<TextSize, TKey> = { tiny: 'textSizeTiny', small: 'textSizeSmall', normal: 'textSizeNormal', big: 'textSizeBig', huge: 'textSizeHuge' };
   const mode = theme === 'dark' ? 'dark' : 'light';
 
   return (
@@ -78,7 +78,7 @@ export function MushafSettingsSheet({ onOpenGeneral }: { onOpenGeneral: () => vo
               accessibilityState={{ selected: size === id }}
               className={cn('min-h-12 flex-1 items-center justify-center rounded-xl px-1 py-2', size === id ? 'border-2 border-primary bg-background' : 'active:bg-accent/60')}
             >
-              <Text className="text-sm font-medium">{t(SIZE_LABEL[id])}</Text>
+              <Text className="text-center text-[13px] font-medium">{t(SIZE_LABEL[id])}</Text>
             </Pressable>
           ))}
         </View>

@@ -1,14 +1,16 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { FlatList, Pressable, View, useWindowDimensions } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { FlatList, Pressable, View, type ViewToken } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowDownToLine, Bookmark, BookOpenText, Brain, CircleCheck, Eye, EyeOff, MoreHorizontal, Play, Repeat, Volume2 } from 'lucide-react-native';
 import { AppHeader } from '@/components/app-header';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
+import { AllahText } from '@/components/allah-text';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Text } from '@/components/ui/text';
 import { cn } from '@/lib/utils';
-import { normalize, translationDir, type Ayah } from '@/lib/quran';
+import { fetchSurah, fetchSurahWords, normalize, translationDir, type Ayah } from '@/lib/quran';
+import type { Word } from '@/lib/tajweed';
 import { useAyahs } from '@/hooks/use-ayahs';
 import { useSurahWords } from '@/hooks/use-surah-words';
 import { AyahWords } from '@/components/ayah-words';
@@ -20,6 +22,9 @@ import { useContentWidth } from '@/lib/layout';
 import { useSettings } from '@/context/settings';
 import { useSurahs } from '@/context/surahs';
 import { useUI } from '@/context/ui';
+
+/** One line of the list: an ayah, or the heading of a surah that the list has continued into. */
+type Row = { kind: 'head'; surah: number } | { kind: 'ayah'; surah: number; a: Ayah };
 
 /** Ornamental ayah-end marker. */
 const mark = (n: number) => `﴿${n.toLocaleString('ar-EG')}﴾`;
@@ -66,13 +71,63 @@ export default function Reader() {
   const list = useRef<FlatList<Ayah>>(null);
   const [revealed, setRevealed] = useState<Set<number>>(() => new Set());
   const focused = useRef<string | null>(null);
+  // Reading on past the last ayah continues into the next surah (and the next after that...).
+  const [tail, setTail] = useState<number[]>([]);
+  const [tailData, setTailData] = useState<Record<number, { ayahs: Ayah[]; words: Word[][] | null }>>({});
+  const [visibleSurah, setVisibleSurah] = useState(surahNumber);
+  const loadingTail = useRef(false);
+  const userScrolled = useRef(false);
+  // Memorize "revealed" keys: the ayah number for this surah, surah * 1000 + number for the ones that follow.
+  const revealKey = (s: number, n: number) => (s === surahNumber ? n : s * 1000 + n);
 
   useEffect(() => setRevealed(new Set()), [surahNumber, memorize]);
+  useEffect(() => {
+    setTail([]);
+    setTailData({});
+    setVisibleSurah(surahNumber);
+    userScrolled.current = false;
+  }, [surahNumber]);
 
-  const scrollTo = useCallback((ayah: number, animated: boolean) => {
+  const rows = useMemo<Row[]>(() => {
+    const out: Row[] = ayahs.map(a => ({ kind: 'ayah', surah: surahNumber, a }));
+    for (const s of tail) {
+      out.push({ kind: 'head', surah: s });
+      for (const a of tailData[s]?.ayahs ?? []) out.push({ kind: 'ayah', surah: s, a });
+    }
+    return out;
+  }, [ayahs, tail, tailData, surahNumber]);
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
+
+  const lastLoaded = tail.length ? tail[tail.length - 1] : surahNumber;
+  const loadNext = useCallback(async () => {
+    if (loadingTail.current || lastLoaded >= 114 || status !== 'ok') return;
+    loadingTail.current = true;
+    const next = lastLoaded + 1;
+    try {
+      const [nextAyahs, nextWords] = await Promise.all([fetchSurah(next), fetchSurahWords(next).catch(() => null)]);
+      setTailData(prev => ({ ...prev, [next]: { ayahs: nextAyahs, words: nextWords } }));
+      setTail(prev => (prev.includes(next) ? prev : [...prev, next]));
+    } catch {
+      /* offline: the "next surah" button stays so it can be tried again */
+    } finally {
+      loadingTail.current = false;
+    }
+  }, [lastLoaded, status]);
+
+  // The title follows the surah that is on screen.
+  const onViewable = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
+    const first = viewableItems.find(v => v.item)?.item as Row | undefined;
+    if (first) setVisibleSurah(first.surah);
+  }).current;
+  const viewConfig = useRef({ itemVisiblePercentThreshold: 60 }).current;
+
+  const scrollTo = useCallback((ayah: number, animated: boolean, ofSurah?: number) => {
     if (!list.current || ayah < 1) return;
-    list.current.scrollToIndex({ index: ayah - 1, animated, viewPosition: 0.3 });
-  }, []);
+    const target = ofSurah ?? surahNumber;
+    const index = rowsRef.current.findIndex(r => r.kind === 'ayah' && r.surah === target && r.a.number === ayah);
+    if (index >= 0) list.current.scrollToIndex({ index, animated, viewPosition: 0.3 });
+  }, [surahNumber]);
 
   // Deep link / resume: scroll to the requested ayah once the text is on screen.
   useEffect(() => {
@@ -86,12 +141,12 @@ export default function Reader() {
 
   // Follow the audio.
   useEffect(() => {
-    if (status === 'ok' && playing?.surah === surahNumber) scrollTo(playing.ayah, true);
+    if (status === 'ok' && playing && (playing.surah === surahNumber || tail.includes(playing.surah))) scrollTo(playing.ayah, true, playing.surah);
   }, [playing?.surah, playing?.ayah, status, surahNumber, scrollTo]);
 
-  const playAyah = (n: number) => {
-    if (playing?.surah === surahNumber && playing.ayah === n) toggle();
-    else play(surahNumber, n);
+  const playAyah = (s: number, n: number) => {
+    if (playing?.surah === s && playing.ayah === n) toggle();
+    else play(s, n);
   };
 
   if (!surah) {
@@ -108,12 +163,13 @@ export default function Reader() {
   const saved = has(surahNumber, settings.reciter);
   const downloading = job?.surah === surahNumber;
   const hasBasmala = surahNumber !== 1 && surahNumber !== 9;
+  const shown = byNumber(visibleSurah) ?? surah;
 
   const toolbar = (
     <View className="gap-3 pb-2 pt-2">
       {hasBasmala && (
         <Text className="font-quran text-center text-3xl text-gold-foreground" style={{ lineHeight: 52, paddingVertical: 6 }} accessibilityLabel={t('bismillah')}>
-          بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ
+          <AllahText text="بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ" />
         </Text>
       )}
       <View className="flex-row flex-wrap items-center gap-2">
@@ -148,9 +204,9 @@ export default function Reader() {
   return (
     <View className="flex-1 bg-background">
       <AppHeader
-        title={isRTL ? surah.name : surah.englishName}
+        title={isRTL ? shown.name : shown.englishName}
         quranTitle={isRTL}
-        subtitle={`${isRTL ? surah.englishName : surah.englishNameTranslation} · ${surah.numberOfAyahs} ${t('ayahs')}`}
+        subtitle={`${isRTL ? shown.englishName : shown.englishNameTranslation} · ${shown.numberOfAyahs} ${t('ayahs')}`}
         onBack={goBack}
       />
 
@@ -185,31 +241,68 @@ export default function Reader() {
       {mushaf.view === 'list' && status === 'ok' && (
         <FlatList
           ref={list}
-          data={ayahs}
-          keyExtractor={a => String(a.number)}
+          data={rows}
+          keyExtractor={r => (r.kind === 'head' ? `head:${r.surah}` : `${r.surah}:${r.a.number}`)}
           ListHeaderComponent={toolbar}
+          ListFooterComponent={
+            lastLoaded < 114 ? (
+              <Pressable onPress={() => void loadNext()} accessibilityRole="button" className="mx-2 mt-6 items-center rounded-2xl border border-border bg-card py-4 active:bg-accent/60">
+                <Text className="text-sm text-muted-foreground">{t('nextSurah')}</Text>
+                <Text className="font-quran text-2xl text-gold-foreground" style={{ lineHeight: 48 }}>{isRTL ? byNumber(lastLoaded + 1)?.name : byNumber(lastLoaded + 1)?.englishName}</Text>
+              </Pressable>
+            ) : null
+          }
           contentContainerClassName="px-2 pb-44"
           initialNumToRender={10}
+          onScrollBeginDrag={() => { userScrolled.current = true; }}
+          // (Not onEndReached: it fires once per list length, which on a short surah is before anyone has touched it.)
+          scrollEventThrottle={100}
+          onScroll={e => {
+            if (!userScrolled.current) return;
+            const { contentOffset, layoutMeasurement, contentSize } = e.nativeEvent;
+            if (contentSize.height - (contentOffset.y + layoutMeasurement.height) < 700) void loadNext();
+          }}
+          onViewableItemsChanged={onViewable}
+          viewabilityConfig={viewConfig}
           onScrollToIndexFailed={info => {
             // Rows have different heights: jump near the target, then retry once it has been measured.
             list.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: false });
             setTimeout(() => list.current?.scrollToIndex({ index: info.index, animated: false, viewPosition: 0.3 }), 150);
           }}
-          renderItem={({ item: a }) => {
-            const isPlaying = playing?.surah === surahNumber && playing.ayah === a.number;
-            const marked = isBookmarked(surahNumber, a.number);
-            const hidden = memorize && !revealed.has(a.number);
+          renderItem={({ item }) => {
+            if (item.kind === 'head') {
+              const s = byNumber(item.surah);
+              return (
+                <View className="items-center gap-2 pb-2 pt-10">
+                  <Text className="font-quran text-4xl text-gold-foreground" style={{ lineHeight: 72, paddingVertical: 6 }}>{s ? (isRTL ? s.name : s.englishName) : `#${item.surah}`}</Text>
+                  {item.surah !== 9 && (
+                    <Text className="font-quran text-center text-2xl" style={{ lineHeight: 52, paddingVertical: 4 }} accessibilityLabel={t('bismillah')}>
+                      <AllahText text="بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ" />
+                    </Text>
+                  )}
+                </View>
+              );
+            }
+            const a = item.a;
+            const sn = item.surah;
+            const isPlaying = !!playing && playing.surah === sn && playing.ayah === a.number;
+            const marked = isBookmarked(sn, a.number);
+            const key = revealKey(sn, a.number);
+            const hidden = memorize && !revealed.has(key);
+            const words = sn === surahNumber ? surahWords : tailData[sn]?.words ?? null;
             // The API prepends the basmala to ayah 1 of most surahs; it is shown as the heading above instead.
-            const stripBasmala = a.number === 1 && hasBasmala && normalize(a.ar).startsWith('بسم الله الرحمن الرحيم');
+            const stripBasmala = a.number === 1 && sn !== 1 && sn !== 9 && normalize(a.ar).startsWith('بسم الله الرحمن الرحيم');
             const text = stripBasmala ? a.ar.replace(/^(\S+\s+){4}/, '') : a.ar;
             const size = settings.fontSize;
+            // At the smallest size the rows are tighter, so about six ayahs fit on the screen.
+            const compact = size <= 20;
             return (
               <View className="border-b border-border/70">
                 <Pressable
-                  onPress={() => playAyah(a.number)}
+                  onPress={() => playAyah(sn, a.number)}
                   accessibilityRole="button"
                   accessibilityLabel={`${t('ayah')} ${a.number}`}
-                  className={cn('rounded-2xl px-4 py-4 active:bg-accent/60', isPlaying && 'bg-accent')}
+                  className={cn('rounded-2xl px-4 active:bg-accent/60', compact ? 'py-2' : 'py-4', isPlaying && 'bg-accent')}
                 >
                   {hidden ? (
                     <HiddenAyah text={text} size={size} label={`${t('ayah')} ${a.number}`} />
@@ -227,7 +320,7 @@ export default function Reader() {
                         writingDirection: 'rtl',
                       }}
                     >
-                      {surahWords?.[a.number - 1] ? <AyahWords words={surahWords[a.number - 1]} active={isPlaying} surah={surahNumber} ayah={a.number} /> : text}{' '}
+                      {words?.[a.number - 1] ? <AyahWords words={words[a.number - 1]} active={isPlaying} surah={sn} ayah={a.number} /> : <AllahText text={text} />}{' '}
                       <Text className="font-quran text-gold-foreground" style={{ fontSize: size * 0.6 }}>{mark(a.number)}</Text>
                     </Text>
                   )}
@@ -243,7 +336,7 @@ export default function Reader() {
                     </Text>
                   )}
                 </Pressable>
-                <View className="flex-row items-center justify-end gap-1 px-3 pb-1">
+                <View className={cn('flex-row items-center justify-end gap-1 px-3', compact ? 'pb-0' : 'pb-1')}>
                   {memorize && (
                     <Button
                       variant="ghost"
@@ -251,7 +344,7 @@ export default function Reader() {
                       onPress={() =>
                         setRevealed(prev => {
                           const next = new Set(prev);
-                          if (!next.delete(a.number)) next.add(a.number);
+                          if (!next.delete(key)) next.add(key);
                           return next;
                         })
                       }
@@ -265,7 +358,7 @@ export default function Reader() {
                     variant="secondary"
                     className="h-11 rounded-full px-4"
                     accessibilityLabel={`${t('tafsirHint')} · ${t('ayah')} ${a.number}`}
-                    onPress={() => setTafsir({ surah: surahNumber, ayah: a.number })}
+                    onPress={() => setTafsir({ surah: sn, ayah: a.number })}
                   >
                     <Icon as={BookOpenText} className="size-4 text-secondary-foreground" />
                     <Text className="text-sm">{t('tafsir')}</Text>
@@ -275,7 +368,7 @@ export default function Reader() {
                     size="icon"
                     className="size-11 rounded-full"
                     accessibilityLabel={`${t('ayahOptions')} · ${t('ayah')} ${a.number}`}
-                    onPress={() => { markRead(surahNumber, a.number); setOptions({ surah: surahNumber, ayah: a.number }); }}
+                    onPress={() => { markRead(sn, a.number); setOptions({ surah: sn, ayah: a.number }); }}
                   >
                     <Icon as={MoreHorizontal} className="size-5 text-muted-foreground" />
                   </Button>
