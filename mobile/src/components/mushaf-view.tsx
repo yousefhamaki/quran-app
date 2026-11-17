@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, Pressable, ScrollView, View, useWindowDimensions, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
+import { FlatList, Pressable, ScrollView, View, type GestureResponderEvent, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import { useUniwind } from 'uniwind';
 import { Brain, ChevronLeft, ChevronRight, Eye, EyeOff } from 'lucide-react-native';
 import { JumpSheet } from '@/components/sheets/jump-sheet';
@@ -114,10 +114,77 @@ interface PageProps {
   /** Ayahs the user has chosen to peek at ("surah:ayah"). */
   revealed: Set<string>;
   onReveal: (key: string) => void;
+  /** A deliberate drag past the end (1) or the start (-1) of the page turns to the next / previous page. */
+  onTurn: (dir: 1 | -1) => void;
 }
 
 /** One mushaf page: ayahs run on like in the printed mushaf (Mushaf 1) or one ayah per block (Mushaf 2). */
-const MushafPage = memo(function MushafPage({ page, width, memorize, revealed, onReveal }: PageProps) {
+const MushafPage = memo(function MushafPage({ page, width, memorize, revealed, onReveal, onTurn }: PageProps) {
+  // Where the page is scrolled, and the edge it was resting on when a finger came down.
+  const metrics = useRef({ y: 0, view: 0, content: 0 });
+  const gesture = useRef<{ x: number; y: number; lastY: number; top: boolean; bottom: boolean } | null>(null);
+  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset, layoutMeasurement, contentSize } = e.nativeEvent;
+    metrics.current = { y: contentOffset.y, view: layoutMeasurement.height, content: contentSize.height };
+  };
+  const touchStart = (e: GestureResponderEvent) => {
+    dragged.current = false;
+    const { y, view, content } = metrics.current;
+    gesture.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, lastY: e.nativeEvent.pageY, top: y <= 12, bottom: view > 0 && y + view >= content - 12 };
+  };
+  // A drag must never count as a tap on the ayah under the finger.
+  const dragged = useRef(false);
+  const touchMove = (e: GestureResponderEvent) => {
+    const g = gesture.current;
+    if (!g) return;
+    g.lastY = e.nativeEvent.pageY;
+    if (Math.abs(g.y - g.lastY) > 12 || Math.abs(g.x - e.nativeEvent.pageX) > 12) dragged.current = true;
+  };
+  const touchEnd = (e: GestureResponderEvent) => {
+    const g = gesture.current;
+    gesture.current = null;
+    if (!g) return;
+    const dy = g.y - e.nativeEvent.pageY;
+    const dx = Math.abs(g.x - e.nativeEvent.pageX);
+    if (Math.abs(dy) < 70 || dx > Math.abs(dy) * 0.6) return;
+    if (dy > 0 && g.bottom) turn(1);
+    else if (dy < 0 && g.top) turn(-1);
+  };
+  // A page that scrolls a little (or a drag the scroll view took over) ends here instead of in the touch handlers.
+  const last = useRef(0);
+  const turn = (dir: 1 | -1) => {
+    if (Date.now() - last.current < 700) return;
+    last.current = Date.now();
+    onTurn(dir);
+  };
+  const dragStart = useRef<{ top: boolean; bottom: boolean; y: number } | null>(null);
+  const dragBegin = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset, layoutMeasurement, contentSize } = e.nativeEvent;
+    dragStart.current = { y: contentOffset.y, top: contentOffset.y <= 12, bottom: contentOffset.y + layoutMeasurement.height >= contentSize.height - 12 };
+  };
+  const dragEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const s0 = dragStart.current;
+    dragStart.current = null;
+    const { contentOffset, layoutMeasurement, contentSize } = e.nativeEvent;
+    const atTop = contentOffset.y <= 12;
+    const atBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - 12;
+    if (!s0) return;
+    // A page that only just overflows is at both edges: the way the offset moved says which way the finger went.
+    if (atTop && atBottom) {
+      const moved = contentOffset.y - s0.y;
+      if (moved > 1) turn(1);
+      else if (moved < -1) turn(-1);
+      else if (gesture.current) {
+        const f = gesture.current.y - gesture.current.lastY;
+        if (f > 8) turn(1);
+        else if (f < -8) turn(-1);
+      }
+      return;
+    }
+    if (s0.bottom && atBottom) turn(1);
+    else if (s0.top && atTop) turn(-1);
+    else if (s0.top && s0.bottom && atBottom) turn(1);
+  };
   const { settings, mushaf, t } = useSettings();
   const { theme } = useUniwind();
   const { playing } = usePlayer();
@@ -146,18 +213,31 @@ const MushafPage = memo(function MushafPage({ page, width, memorize, revealed, o
   // While memorizing, the first tap on a hidden ayah shows it; a tap on a shown ayah opens its options.
   const hiddenOf = (s: number, n: number) => memorize && !revealed.has(ayahKey(s, n));
   const pick = (s: number, n: number) => {
+    if (dragged.current) return;
     if (hiddenOf(s, n)) { onReveal(ayahKey(s, n)); return; }
     markRead(s, n);
     setOptions({ surah: s, ayah: n });
   };
-  const explain = (s: number, n: number) => setTafsir({ surah: s, ayah: n });
+  const explain = (s: number, n: number) => { if (!dragged.current) setTafsir({ surah: s, ayah: n }); };
   const lineHeight = size * (mushaf.wide ? 2.25 : 2.1);
   const textStyle = { fontSize: size, lineHeight, paddingBottom: size * 0.3, textAlign: mushaf.align === 'center' ? ('center' as const) : ('right' as const), writingDirection: 'rtl' as const };
   const num = (n: number) => `﴿${n.toLocaleString('ar-EG')}﴾`;
 
   return (
     <View style={{ width, flex: 1 }}>
-      <ScrollView contentContainerClassName="px-3 pb-56 pt-2" showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerClassName="px-3 pb-56 pt-2"
+        showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={onScroll}
+        onLayout={e => { metrics.current.view = e.nativeEvent.layout.height; }}
+        onContentSizeChange={(_, h) => { metrics.current.content = h; }}
+        onTouchStart={touchStart}
+        onTouchMove={touchMove}
+        onTouchEnd={touchEnd}
+        onScrollBeginDrag={dragBegin}
+        onScrollEndDrag={dragEnd}
+      >
         {failed ? (
           <View className="items-center gap-4 rounded-2xl border border-dashed border-border p-8">
             <Text className="text-center text-muted-foreground">{t('error')}</Text>
@@ -275,6 +355,15 @@ export function MushafView({ surah, ayah, onNavigate }: Props) {
     onNavigate(first.surah, first.ayah);
   };
 
+  const settleRef = useRef(settle);
+  settleRef.current = settle;
+  const turn = useCallback((dir: 1 | -1) => {
+    const p = Math.max(1, Math.min(TOTAL_PAGES, pageRef.current + dir));
+    if (p === pageRef.current) return;
+    show(p, true);
+    settleRef.current(p);
+  }, [show]);
+
   const onEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const index = Math.round(e.nativeEvent.contentOffset.x / width);
     settle(TOTAL_PAGES - Math.max(0, Math.min(TOTAL_PAGES - 1, index)));
@@ -327,7 +416,7 @@ export function MushafView({ surah, ayah, onNavigate }: Props) {
         maxToRenderPerBatch={2}
         removeClippedSubviews
         onMomentumScrollEnd={onEnd}
-        renderItem={({ item }) => <MushafPage page={item} width={width} memorize={memorize} revealed={revealed} onReveal={reveal} />}
+        renderItem={({ item }) => <MushafPage page={item} width={width} memorize={memorize} revealed={revealed} onReveal={reveal} onTurn={turn} />}
       />
       <JumpSheet
         open={jumpOpen}
