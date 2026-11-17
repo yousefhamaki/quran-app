@@ -300,6 +300,7 @@ export default function Reader() {
               <View className="border-b border-border/70">
                 <Pressable
                   onPress={() => playAyah(sn, a.number)}
+                  onLongPress={() => { markRead(sn, a.number); setOptions({ surah: sn, ayah: a.number }); }}
                   accessibilityRole="button"
                   accessibilityLabel={`${t('ayah')} ${a.number}`}
                   className={cn('rounded-2xl px-4 active:bg-accent/60', compact ? 'py-2' : 'py-4', isPlaying && 'bg-accent')}
@@ -336,6 +337,7 @@ export default function Reader() {
                     </Text>
                   )}
                 </Pressable>
+                {(mushaf.showActions || memorize) && (
                 <View className={cn('flex-row items-center justify-end gap-1 px-3', compact ? 'pb-0' : 'pb-1')}>
                   {memorize && (
                     <Button
@@ -354,6 +356,7 @@ export default function Reader() {
                       <Text className="text-sm text-muted-foreground">{hidden ? t('revealAyah') : t('hideAyah')}</Text>
                     </Button>
                   )}
+                  {mushaf.showActions && (<>
                   <Button
                     variant="secondary"
                     className="h-11 rounded-full px-4"
@@ -372,7 +375,9 @@ export default function Reader() {
                   >
                     <Icon as={MoreHorizontal} className="size-5 text-muted-foreground" />
                   </Button>
+                  </>)}
                 </View>
+                )}
               </View>
             );
           }}

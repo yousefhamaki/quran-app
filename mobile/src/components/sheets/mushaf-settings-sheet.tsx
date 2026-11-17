@@ -103,6 +103,9 @@ export function MushafSettingsSheet({ onOpenGeneral }: { onOpenGeneral: () => vo
         </View>
       </Section>
 
+      {/* The Tafsir / more buttons under each ayah of the list */}
+      <SwitchRow label={t('mushafShowActions')} hint={t('mushafShowActionsHint')} checked={mushaf.showActions} onChange={v => setMushaf({ showActions: v })} />
+
       {/* Landscape (phone only) */}
       <SwitchRow label={t('mushafLandscape')} hint={t('mushafLandscapeHint')} checked={mushaf.allowLandscape} onChange={v => setMushaf({ allowLandscape: v })} />
 

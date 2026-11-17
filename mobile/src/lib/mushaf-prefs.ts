@@ -19,6 +19,8 @@ export interface MushafPrefs {
   numberColor: NumberColor;
   /** Use a wide Arabic font (Scheherazade New) for the ayahs. */
   wide: boolean;
+  /** Show the Tafsir and "more" buttons under every ayah of the list (off: long-press an ayah for its actions). */
+  showActions: boolean;
 }
 
 export const DEFAULT_MUSHAF: MushafPrefs = {
@@ -28,6 +30,7 @@ export const DEFAULT_MUSHAF: MushafPrefs = {
   surahName: 'ornate',
   numberColor: 'gold',
   wide: false,
+  showActions: false,
 };
 
 /** Colours for ayah numbers; readable on both the light and the dark theme. */
@@ -58,6 +61,7 @@ export function normalizeMushaf(raw: Partial<MushafPrefs> | null | undefined): M
     surahName: pick(r.surahName, ['plain', 'ornate'] as const, DEFAULT_MUSHAF.surahName),
     numberColor: pick(r.numberColor, ['gold', 'red', 'blue', 'green', 'gray'] as const, DEFAULT_MUSHAF.numberColor),
     wide: r.wide === true,
+    showActions: r.showActions === true,
   };
 }
 

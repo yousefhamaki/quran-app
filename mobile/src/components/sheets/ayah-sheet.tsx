@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
-import { Bookmark, BookmarkCheck, Mic, Play, Share2 } from 'lucide-react-native';
+import { Bookmark, BookmarkCheck, BookOpenText, Mic, Play, Share2 } from 'lucide-react-native';
 import { ShareCard, type ShareCardData } from '@/components/share-card';
 import { useAyahs } from '@/hooks/use-ayahs';
 import { useToast } from '@/context/toast';
@@ -21,9 +21,9 @@ import { useUI } from '@/context/ui';
 const HL_DOT: Record<HighlightColor, string> = { yellow: '#facc15', green: '#34d399', blue: '#38bdf8', pink: '#f472b6' };
 const HL_LABEL = { yellow: 'hlYellow', green: 'hlGreen', blue: 'hlBlue', pink: 'hlPink' } as const;
 
-/** Reciter choice + bookmark for one ayah. (Tafsir has its own sheet, one tap from each ayah.) */
+/** The actions of one ayah: play with a reciter, tafsir, bookmark, record, share, highlight and note. */
 export function AyahSheet() {
-  const { options, setOptions, setRecord } = useUI();
+  const { options, setOptions, setRecord, setTafsir } = useUI();
   const { settings, update, t, isRTL } = useSettings();
   const { isBookmarked, toggleBookmark, annotationOf, setHighlight, setNote } = useLibrary();
   const [draft, setDraft] = useState('');
@@ -73,6 +73,10 @@ export function AyahSheet() {
           >
             <Icon as={Play} className="size-5 fill-primary-foreground text-primary-foreground" />
             <Text className="text-base">{t('playAyahWith', { n: options.ayah, name: chosen ? (isRTL ? chosen.ar : chosen.en) : '' })}</Text>
+          </Button>
+          <Button variant="ghost" className="h-11 rounded-xl" onPress={() => { const target = { surah: options.surah, ayah: options.ayah }; close(); setTafsir(target); }}>
+            <Icon as={BookOpenText} className="size-5" />
+            <Text>{t('tafsir')}</Text>
           </Button>
           <Button variant="ghost" className="h-11 rounded-xl" onPress={() => toggleBookmark(options.surah, options.ayah)}>
             <Icon as={marked ? BookmarkCheck : Bookmark} className={marked ? 'size-5 text-gold' : 'size-5'} />
