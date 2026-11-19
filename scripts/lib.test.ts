@@ -763,3 +763,39 @@ test('dua of the day: the text is the book text, untouched', () => {
   const all = new Set(HISN.flatMap(c => c.items.map(i => i.ar.trim())));
   for (const d of pool) assert.ok(all.has(d.ar));
 });
+
+// ---------------------------------------------------------------- bookmark folders
+
+import { EMPTY_FOLDERS, addFolder, assignTo, countIn, filterMarks, folderOf, normalizeFolders, removeFolder, renameFolder } from '../mobile/src/lib/folders.ts';
+
+test('folders: add, no empty or duplicate names, trimmed', () => {
+  let s = addFolder(EMPTY_FOLDERS, '  Favourites  ', 'a')!;
+  assert.equal(s.folders[0].name, 'Favourites');
+  assert.equal(addFolder(s, 'favourites', 'b'), null);
+  assert.equal(addFolder(s, '   ', 'b'), null);
+  s = addFolder(s, 'Hifz', 'b')!;
+  assert.equal(s.folders.length, 2);
+});
+
+test('folders: file bookmarks, filter and count, delete returns them to unfiled', () => {
+  const marks = [{ surah: 1, ayah: 1 }, { surah: 2, ayah: 255 }, { surah: 18, ayah: 10 }];
+  let s = addFolder(EMPTY_FOLDERS, 'Dua', 'd')!;
+  s = assignTo(s, '2:255', 'd');
+  assert.equal(folderOf(s, '2:255'), 'd');
+  assert.equal(countIn(s, marks, 'd'), 1);
+  assert.equal(countIn(s, marks, 'none'), 2);
+  assert.equal(filterMarks(s, marks, 'all').length, 3);
+  assert.equal(assignTo(s, '1:1', 'nope').assign['1:1'], undefined);
+  s = removeFolder(s, 'd');
+  assert.equal(s.folders.length, 0);
+  assert.equal(countIn(s, marks, 'none'), 3);
+});
+
+test('folders: rename keeps names unique; normalize repairs bad data', () => {
+  let s = addFolder(addFolder(EMPTY_FOLDERS, 'A', 'a')!, 'B', 'b')!;
+  assert.equal(renameFolder(s, 'a', 'b'), null);
+  assert.equal(renameFolder(s, 'a', 'C')!.folders[0].name, 'C');
+  const n = normalizeFolders({ folders: [{ id: 'x', name: ' Z ' }, { id: 'x', name: 'dup' }, { id: '', name: 'no' }, 5], assign: { '1:1': 'x', '2:2': 'gone', '3:3': 7 } });
+  assert.deepEqual(n, { folders: [{ id: 'x', name: 'Z' }], assign: { '1:1': 'x' } });
+  assert.deepEqual(normalizeFolders(null), EMPTY_FOLDERS);
+});

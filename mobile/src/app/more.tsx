@@ -3,6 +3,7 @@ import { Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ArrowDownToLine, Highlighter, ArrowRight, Bookmark, CalendarDays, CircleDot, HandHeart, Star, Languages, Search, SlidersHorizontal, Sparkles, UserRound, Volume2, X } from 'lucide-react-native';
 import { AppHeader } from '@/components/app-header';
+import { BookmarksPanel } from '@/components/bookmarks-panel';
 import { QueueSheet } from '@/components/sheets/queue-sheet';
 import { Icon } from '@/components/ui/icon';
 import { Input } from '@/components/ui/input';
@@ -117,16 +118,7 @@ export default function MoreScreen() {
           <>
             <Group title={t('moreLibrary')}>
               <Row icon={Bookmark} title={t('moreBookmarks')} hint={bookmarks.length === 0 ? t('moreBookmarksEmpty') : undefined} badge={bookmarks.length > 0 ? String(bookmarks.length) : undefined} onPress={() => setShowBookmarks(v => !v)} />
-              {showBookmarks && bookmarks.length > 0 ? (
-                <View className="border-b border-border bg-muted/40">
-                  {bookmarks.map(b => (
-                    <Pressable key={`${b.surah}:${b.ayah}`} onPress={() => router.push({ pathname: '/surah/[id]', params: { id: String(b.surah), ayah: String(b.ayah) } })} accessibilityRole="button" className="min-h-12 flex-row items-center justify-between gap-3 px-6 py-2 active:bg-accent/50">
-                      <Text className="text-sm">{surahName(b.surah)}</Text>
-                      <Text className="text-sm text-muted-foreground">{t('ayah')} {b.ayah}</Text>
-                    </Pressable>
-                  ))}
-                </View>
-              ) : null}
+              {showBookmarks && bookmarks.length > 0 ? <BookmarksPanel surahName={surahName} /> : null}
               <Row icon={Highlighter} title={t('moreNotes')} hint={notes.length === 0 ? t('moreNotesEmpty') : undefined} badge={notes.length > 0 ? String(notes.length) : undefined} onPress={() => setShowNotes(v => !v)} />
               {showNotes && notes.length > 0 ? (
                 <View className="border-b border-border bg-muted/40">
