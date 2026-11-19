@@ -665,3 +665,44 @@ test('allah: splitAllah keeps the rest of the text together', () => {
   assert.equal(splitAllah('ٱلْحَمْدُ لِلَّهِ رَبِّ ٱلْعَٰلَمِينَ').filter(r => r.allah).length, 1);
   assert.equal(splitAllah('رَبِّ').length, 1);
 });
+
+// ---------------------------------------------------------------- tasbih
+
+import { DEFAULT_TASBIH, normalizeTasbih, reset as tasbihReset, select as tasbihSelect, setTarget as tasbihSetTarget, tap as tasbihTap, totalOf as tasbihTotal, undo as tasbihUndo } from '../mobile/src/lib/tasbih.ts';
+
+test('tasbih: counts up and finishes a round at the target', () => {
+  let s = tasbihSetTarget(DEFAULT_TASBIH, 'subhanallah', 3);
+  let finished = false;
+  for (let i = 0; i < 3; i++) { const r = tasbihTap(s, '2026-11-19'); s = r.state; finished = r.finishedRound; }
+  assert.equal(finished, true);
+  assert.deepEqual(s.items.subhanallah, { count: 0, laps: 1 });
+  assert.equal(s.days['2026-11-19'], 3);
+  assert.equal(tasbihTotal(s, 'subhanallah'), 3);
+});
+
+test('tasbih: no limit never finishes a round, undo and reset', () => {
+  let s = tasbihSelect(DEFAULT_TASBIH, 'free');
+  for (let i = 0; i < 150; i++) s = tasbihTap(s, 'd').state;
+  assert.deepEqual(s.items.free, { count: 150, laps: 0 });
+  s = tasbihUndo(s, 'd');
+  assert.equal(s.items.free.count, 149);
+  assert.equal(s.days.d, 149);
+  assert.equal(tasbihReset(s).items.free.count, 0);
+  assert.equal(tasbihUndo(tasbihReset(s), 'd').items.free.count, 0);
+});
+
+test('tasbih: lowering the target never leaves the count past it', () => {
+  let s = DEFAULT_TASBIH;
+  for (let i = 0; i < 20; i++) s = tasbihTap(s, 'd').state;
+  s = tasbihSetTarget(s, 'subhanallah', 10);
+  assert.equal(s.items.subhanallah.count, 0);
+});
+
+test('tasbih: normalize repairs bad saved data', () => {
+  const s = normalizeTasbih({ active: 'nope', items: { a: { count: -4, laps: 'x' } }, days: { d: 3.7 }, vibrate: false });
+  assert.equal(s.active, 'subhanallah');
+  assert.deepEqual(s.items.a, { count: 0, laps: 0 });
+  assert.equal(s.days.d, 3);
+  assert.equal(s.vibrate, false);
+  assert.deepEqual(normalizeTasbih(null), { ...DEFAULT_TASBIH });
+});

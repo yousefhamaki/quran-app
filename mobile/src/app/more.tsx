@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ArrowDownToLine, Highlighter, ArrowRight, Bookmark, CalendarDays, HandHeart, Languages, Search, SlidersHorizontal, Sparkles, UserRound, Volume2, X } from 'lucide-react-native';
+import { ArrowDownToLine, Highlighter, ArrowRight, Bookmark, CalendarDays, CircleDot, HandHeart, Languages, Search, SlidersHorizontal, Sparkles, UserRound, Volume2, X } from 'lucide-react-native';
 import { AppHeader } from '@/components/app-header';
 import { QueueSheet } from '@/components/sheets/queue-sheet';
 import { Icon } from '@/components/ui/icon';
@@ -72,7 +72,7 @@ export default function MoreScreen() {
   const openGeneral = () => { setSettingsScope('general'); setSettingsOpen(true); };
   const openMushaf = () => { setSettingsScope('mushaf'); setSettingsOpen(true); };
   const openPlayer = () => (playing ? setPlayerOpen(true) : openGeneral());
-  const goPage = (path: '/daily' | '/prayer' | '/plan' | '/calendar' | '/adhkar', param?: string) =>
+  const goPage = (path: '/daily' | '/prayer' | '/plan' | '/calendar' | '/adhkar' | '/tasbih', param?: string) =>
     router.push(param ? { pathname: path, params: path === '/adhkar' ? { c: param } : { tab: param } } : path);
 
   const openFeature = (f: Feature) => {
@@ -146,6 +146,7 @@ export default function MoreScreen() {
 
             <Group title={t('moreTools')}>
               <Row icon={HandHeart} title={t('adhkarTitle')} hint={t('adhkarCardHint')} onPress={() => goPage('/adhkar')} />
+              <Row icon={CircleDot} title={t('tasbihTitle')} hint={t('tasbihCardHint')} onPress={() => goPage('/tasbih')} />
               <Row icon={CalendarDays} title={t('calendarTitle')} hint={t('calendarCardHint')} onPress={() => goPage('/calendar')} />
               <Row icon={Volume2} title={t('morePlayback')} hint={playing ? t('morePlaybackHint') : t('morePlaybackNone')} onPress={openPlayer} last />
             </Group>

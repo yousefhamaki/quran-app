@@ -6,7 +6,7 @@
 
 /** Where a feature lives. The screens decide how to open each kind. */
 export type FeatureTarget =
-  | { kind: 'page'; page: 'daily' | 'prayer' | 'plan' | 'calendar' | 'adhkar'; param?: string }
+  | { kind: 'page'; page: 'daily' | 'prayer' | 'plan' | 'calendar' | 'adhkar' | 'tasbih'; param?: string }
   | { kind: 'quran' }
   /** The general settings (theme, language, audio defaults, downloads). */
   | { kind: 'settings' }
@@ -79,6 +79,7 @@ export const FEATURES: Feature[] = [
 
   // ---- Remembrance
   { id: 'adhkar', ar: 'الأذكار والأدعية', en: 'Adhkar and duas', hintAr: 'الصباح والمساء وبعد الصلاة والنوم', hintEn: 'Morning, evening, after prayer, sleep', keywords: 'adhkar azkar dhikr dua supplication أذكار دعاء الصباح المساء', target: { kind: 'page', page: 'adhkar' } },
+  { id: 'tasbih', ar: 'المسبحة', en: 'Tasbih counter', hintAr: 'عدّاد للتسبيح والأذكار', hintEn: 'Count your dhikr with a tap', keywords: 'tasbih tasbeeh tasbeha counter dhikr zikr misbaha تسبيح مسبحة عداد سبحة', target: { kind: 'page', page: 'tasbih' } },
   { id: 'khatm-dua', ar: 'دعاء ختم القرآن', en: 'Dua for completing the Quran', hintAr: 'ادعُ بعد أن تُتمّ ختمتك', hintEn: 'Make dua after finishing the Quran', keywords: 'khatm dua complete finish ختم دعاء', target: { kind: 'page', page: 'adhkar', param: 'khatm' } },
 
   // ---- App
