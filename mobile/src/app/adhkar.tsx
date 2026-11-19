@@ -93,7 +93,7 @@ export default function AdhkarScreen() {
   const [showAll, setShowAll] = useState(false);
   const found = useMemo(() => (query.trim() ? searchChapters(query) : null), [query]);
   const all = useMemo(() => allChapters(), []);
-  const [open, setOpen] = useState<Category | null>(() => [...daily, ...more].find(x => x.id === c) ?? CATEGORIES.find(x => x.id === c) ?? null);
+  const [open, setOpen] = useState<Category | null>(() => [...daily, ...more].find(x => x.id === c) ?? CATEGORIES.find(x => x.id === c) ?? allChapters().find(x => x.id === c) ?? null);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const goBack = () => (open ? setOpen(null) : router.canGoBack() ? router.back() : router.replace('/'));
 

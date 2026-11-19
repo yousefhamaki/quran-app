@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { Pressable, ScrollView, Share, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Svg, { Circle } from 'react-native-svg';
 import { useCSSVariable } from 'uniwind';
-import { ArrowRight, Bell, BookCheck, CheckCircle2, Flame, HandHeart, Trash2 } from 'lucide-react-native';
+import { ArrowRight, Bell, BookCheck, CheckCircle2, Flame, HandHeart, Share2, Trash2 } from 'lucide-react-native';
 import { AppHeader } from '@/components/app-header';
 import { Chips } from '@/components/chips';
 import { SwitchRow } from '@/components/controls';
@@ -13,7 +13,9 @@ import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { cn } from '@/lib/utils';
 import type { TKey } from '@/lib/i18n';
-import { approxPages, daysEarly, takenDays, TOTAL_AYAHS, type Ref } from '@/lib/habit';
+import { approxPages, dateString, daysEarly, takenDays, TOTAL_AYAHS, type Ref } from '@/lib/habit';
+import { duaOfDay, duaPool } from '@/lib/dua-of-day';
+import { HISN } from '@/lib/hisn';
 import { fetchAyahText, type AyahText } from '@/lib/dailyayah';
 import type { ReminderResult } from '@/lib/reminders';
 import { useHabit, type Reminder } from '@/context/habit';
@@ -131,6 +133,8 @@ export default function DailyScreen() {
     return () => { cancelled = true; };
   }, [ayahOfDay.surah, ayahOfDay.ayah]);
 
+  const dua = useMemo(() => duaOfDay(dateString(), duaPool(HISN)), []);
+
   const nameOf = (n: number) => { const s = byNumber(n); return s ? (isRTL ? s.name : s.englishName) : `#${n}`; };
   const refLabel = (r: Ref) => `${nameOf(r.surah)} ${r.ayah}`;
   const open = (r: Ref) => router.push({ pathname: '/surah/[id]', params: { id: String(r.surah), ayah: String(r.ayah) } });
@@ -174,6 +178,25 @@ export default function DailyScreen() {
                 <Text>{t('ayahOfDayOpen')}</Text>
                 <Icon as={ArrowRight} className="size-4 rtl:rotate-180" />
               </Button>
+            </Panel>
+
+            <Panel className="gap-3 rounded-3xl p-5">
+              <Text className="text-xs font-medium uppercase tracking-wide text-primary">{t('duaOfDay')}</Text>
+              <Text className="text-sm text-muted-foreground">{dua.title}</Text>
+              <Text className="font-quran text-2xl" style={{ lineHeight: 52, paddingVertical: 6, writingDirection: 'rtl' }}>{dua.ar}</Text>
+              {dua.count > 1 ? <Text className="text-sm font-medium text-primary">{t('duaRepeat', { n: dua.count })}</Text> : null}
+              <View className="flex-row flex-wrap gap-2">
+                <Button variant="outline" className="h-11 rounded-xl" onPress={() => router.push({ pathname: '/adhkar', params: { c: `hisn-${dua.chapter}` } })}>
+                  <Icon as={HandHeart} className="size-4" />
+                  <Text>{t('duaMore')}</Text>
+                </Button>
+                <Button variant="ghost" className="h-11 rounded-xl" onPress={() => Share.share({ message: `${dua.ar}
+
+${dua.title}` }).catch(() => {})} accessibilityLabel={t('namesShare')}>
+                  <Icon as={Share2} className="size-4" />
+                  <Text>{t('namesShare')}</Text>
+                </Button>
+              </View>
             </Panel>
 
             <Panel className="gap-4 rounded-3xl p-5">

@@ -735,3 +735,31 @@ test('names: search works in Arabic, transliteration and English', () => {
   assert.equal(searchNames('99')[0].ar, 'الصبور');
   assert.equal(searchNames('zzzzz').length, 0);
 });
+
+// ---------------------------------------------------------------- dua of the day
+
+import { DUA_CHAPTERS, dayNumber, duaOfDay, duaPool } from '../mobile/src/lib/dua-of-day.ts';
+
+test('dua of the day: the pool only holds short duas from the chosen chapters', () => {
+  const pool = duaPool(HISN);
+  assert.ok(pool.length >= 60, `pool has ${pool.length}`);
+  for (const d of pool) {
+    assert.ok(DUA_CHAPTERS.includes(d.chapter));
+    assert.ok(d.ar.length >= 20 && d.ar.length <= 420);
+    assert.ok(d.count >= 1);
+  }
+});
+
+test('dua of the day: same date same dua, and it changes day to day', () => {
+  const pool = duaPool(HISN);
+  assert.equal(duaOfDay('2026-11-19', pool).ar, duaOfDay('2026-11-19', pool).ar);
+  const week = new Set(Array.from({ length: 14 }, (_, i) => duaOfDay(`2026-11-${String(10 + i).padStart(2, '0')}`, pool).ar));
+  assert.equal(week.size, 14);
+  assert.equal(dayNumber('1970-01-02'), 1);
+});
+
+test('dua of the day: the text is the book text, untouched', () => {
+  const pool = duaPool(HISN);
+  const all = new Set(HISN.flatMap(c => c.items.map(i => i.ar.trim())));
+  for (const d of pool) assert.ok(all.has(d.ar));
+});
