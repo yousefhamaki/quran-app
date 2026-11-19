@@ -706,3 +706,32 @@ test('tasbih: normalize repairs bad saved data', () => {
   assert.equal(s.vibrate, false);
   assert.deepEqual(normalizeTasbih(null), { ...DEFAULT_TASBIH });
 });
+
+// ---------------------------------------------------------------- names of Allah
+
+import { NAMES, dayOfYear, nameOfDay, searchNames } from '../mobile/src/lib/names.ts';
+
+test('names: there are 99, numbered in order, none missing a field', () => {
+  assert.equal(NAMES.length, 99);
+  NAMES.forEach((x, i) => { assert.equal(x.n, i + 1); assert.ok(x.ar && x.tr && x.en && x.meaning); });
+  assert.equal(new Set(NAMES.map(x => x.ar)).size, 99);
+});
+
+test('names: the name of the day cycles through all 99', () => {
+  assert.equal(dayOfYear('2026-01-01'), 1);
+  assert.equal(dayOfYear('2026-12-31'), 365);
+  assert.equal(nameOfDay('2026-01-01').n, 1);
+  assert.equal(nameOfDay('2026-04-10').n, 100 % 99);
+  assert.equal(nameOfDay('2026-04-09').n, 99);
+});
+
+test('names: search works in Arabic, transliteration and English', () => {
+  assert.equal(searchNames('').length, 99);
+  assert.equal(searchNames('الرَّحْمَٰن')[0].tr, 'Ar-Rahman');
+  assert.equal(searchNames('ghaffar')[0].ar, 'الغفار');
+  assert.equal(searchNames('al-razzaq').length, 0);
+  assert.equal(searchNames('razzaq')[0].ar, 'الرزاق');
+  assert.equal(searchNames('provider')[0].ar, 'الرزاق');
+  assert.equal(searchNames('99')[0].ar, 'الصبور');
+  assert.equal(searchNames('zzzzz').length, 0);
+});
